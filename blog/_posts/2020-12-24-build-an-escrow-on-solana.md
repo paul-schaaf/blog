@@ -15,6 +15,7 @@ using an escrow program as an example. We'll go through the code together, build
 
 > On Solana, smart contracts are called _programs_.
 
+The post switches between theory and practice often to keep it engaging. It requires no previous knowledge of Solana.
 While this is not a Rust tutorial, I will link to the [Rust docs](https://doc.rust-lang.org/book) whenever I introduce a new concept.
 I will also link to the relevant Solana docs although you don't have to read them to follow along.
 
@@ -71,7 +72,7 @@ Each account also has an `owner` and only the owner may debit the account and ad
 
 Now you might be thinking "does that mean that my own SOL account is actually not owned by myself?". And you'd be right! But fear not, your funds are safu. The way it works is that even basic SOL transactions are handled by a program on Solana: the `system program`.
 
-![](../images/2020-12-24-always-has-been.jpeg)
+![](../images/2020-12-24/2020-12-24-always-has-been.jpeg)
 
 If you look at the program you'll see that although the program has full autonomy over all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited. 
 
@@ -90,6 +91,13 @@ Now, to finally conclude this section, create a new `entrypoint.rs` file next to
 pub mod entrypoint;
 ```
 
+The src folder:
+```
+.
+├─ entrypoint.rs
+├─ lib.rs
+```
+
 #### recap
 
 - each program has an entrypoint whose structure depends on which BPF Loader is used
@@ -98,8 +106,13 @@ pub mod entrypoint;
 - only the account owner may debit an account and adjust its data
 - all accounts to be written to or read must be passed into the entrypoint
 
- 
-<!-- Below is the program structure that we will end up with. It's rougly what you'll see in the official solana programs such as the [token program](https://github.com/solana-labs/solana-program-library/tree/master/token/program/src) as well.
+### instruction.rs Part 1, general code structure, and the beginning of the escrow program flow
+
+#### code structure
+
+Next, create a file `instruction.rs` next to the other two and register it inside `lib.rs` like you did with the entrypoint. To understand the new file's purpose, let's look at a common way to structure a program's code and the way
+we will structure our program as well.
+
 
 ```
 .
@@ -109,8 +122,164 @@ pub mod entrypoint;
 │  ├─ instruction.rs
 │  ├─ processor.rs
 │  ├─ state.rs
+│  ├─ error.rs
 ├─ .gitignore
 ├─ Cargo.lock
 ├─ Cargo.toml
 ├─ Xargo.toml
-``` -->
+```
+
+The flow of a program using this structure looks like this:
+
+1. Someone calls the entrypoint
+2. The entrypoint forwards the arguments to the processor
+3. The processor asks `instruction.rs` to decode the `instruction_data` argument from the entrypoint function.
+4. Using the decoded data, the processor will now decide which processing function to use to process the request.
+5. The processor may use `state.rs` to encode state into or decode the state of an account which has been passed into the entrypoint.
+
+As you can see,
+
+> instruction.rs defines the API of the program
+
+While there is only one entrypoint, program execution can follow different paths depending on the given instruction data that is decoded inside `instruction.rs`.
+
+#### beginning of the escrow program flow
+
+Let's now look at the different execution paths our program may take by zooming out and sketching the program flow for our escrow program.
+
+Remember we have two parties _Alice_ and _Bob_ which means there are two `system_program` accounts. Because _Alice_ and _Bob_ want to transfer tokens,
+we'll make use of - you guessed it! - the `token program`. This program assigns each token its own account. Both _Alice_ and _Bob_ need an account for each token (which we'll call X and Y), so we get 4 more accounts. Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data. For now, our world looks like this:
+
+![](../images/2020-12-24/2020-12-24-escrow-sketch-1.png)
+
+Now there are two questions you might ask yourself. How will Alice and Bob transfer ownership of X and Y respectively to the escrow and how are their main accs connected to their token accs?
+To find an answer to these questions, we must briefly jump into the `token program`.
+
+### The token program Part 1
+
+#### token ownership
+
+The naive way one might connect Alice's main account to her token accounts is by not connecting them at all. Whenever she wanted transfer a token, she'd use the private key
+of the token account. Clearly, this would not be sustainable if Alice owned many tokens because that would require her to keep a private key for each token account.
+
+It would be much easier for Alice if she just had one private key for all her token accounts and this is exactly how the token program does it!
+It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. This new token owner attribute is something the token program declares in user-space. It's encoded inside a token account's `data`, in addition to other properties such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx with the private key of their main account.
+We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/FpYU4M8oH9pfUqzpff44gsGso96MUKW1G1tBZ9Kxcb7d?cluster=mainnet-beta).
+
+You've probably noticed the `mint` field in the explorer. This is how we know which token the token account belongs to. For each token there is 1 mint account that holds the token's metadata such as the supply. We'll need this field later to verify that the token accs Alice and Bob use really belong to asset X and Y and that neither party is sneaking in a wrong asset.
+
+With all this in mind, we can create populate our world with more information:
+
+![](../images/2020-12-24/2020-12-24-escrow-sketch-2.png)
+
+Now we know how all those accounts are connected but we don't know yet how Alice can transfer tokens to the escrow. We'll cover this now.
+#### transferring ownership
+
+The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user-space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade. Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
+
+![](../images/2020-12-24/2020-12-24-escrow-sketch-3.png)
+
+There is one more problem here. What exactly does Alice transfer ownership to? Enter [_Program Derived Addresses_](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses).
+
+### Program Derived Addresses (PDAs) Part 1
+
+Transferring ownership to the account the program is stored at is a bad idea. The program's deployer might have the private key to that address and you don't want them to own your funds. The question is, then, can programs be given user-space ownership of a token account?
+
+![](../images/2020-12-24/2020-12-24_no_but_yes.jpg)
+
+The trick is to assign token account ownership to a _Program Derived Address_ of the escrow program. For now, it is enough for you to know this address exists and we can use it to let a program sign transactions or assign it user-space ownership of accounts. We will cover PDAs in depth later but for now let's go back to coding!
+
+### instruction.rs Part 2
+
+We left off at `instruction.rs` with the knowledge that this file would define the API of the program but without having written any code yet. 
+Let's start coding by adding an `InitEscrow` API endpoint.
+
+``` rust
+// inside instruction.rs
+pub enum EscrowInstruction {
+
+    /// Starts the trade by creating and populating an escrow account and transferring ownership of the given temp token account to the PDA
+    ///
+    ///
+    /// Accounts expected:
+    ///
+    /// 0. `[signer]` The account of the person initializing the escrow
+    /// 1. `[writable]` Temporary token account that should be created prior to this instruction and owned by the initializer
+    /// 2. `[]` The initializer's token account for the token they will receive should the trade go through
+    /// 3. `[writable]` The escrow account, it will hold all necessary info about the trade.
+    /// 4. `[]` The token program
+    InitEscrow {
+        /// The amount party A expects to receive of token Y
+        amount: u64
+    }
+}
+```
+
+Although `instruction.rs` does not touch accounts, it is helpful to define which accounts you expect here so all the required calling info is in one place and easy to find for others. Additionally, it's helpful to add required account properties into brackets. The `writable` property should remind you of the parallelisation I explained above. If the caller does not mark the account `writable` in their calling code but the program attempts to write to it, the transaction will fail.
+
+Let me explain why the endpoint looks like it does:
+
+1. We need Account 0 and specifically Account 0 as a signer because transferring the ownership of the temporary account requires Alice's signature.
+2. Account 1 is the temp token X account which needs to be writable. This is because changing token account ownership is a user-space change which means the `data` field of the account will be changed
+3. Account 2 is Alice's token Y account.
+4. Account 3 is the escrow account which also needs to be writable because the program will write the escrow information into it
+5. Account 4 is the account of the token program itself. I will explain why we need this account when we get to writing the processor code
+6. Finally, the program requires the amount of token Y that Alice wants to receive for her X tokens. This amount is not provided through an account but through the `instruction_data`.
+
+`instruction.rs` is only responsible for decoding `instruction_data` so that's that we'll do next.
+
+``` rust{2-4,24-45}
+// inside instruction.rs
+use crate::error::{EscrowError, EscrowError::InvalidInstruction};
+use solana_program::program_error::ProgramError;
+use std::convert::TryInto;
+
+ pub enum EscrowInstruction {
+
+    /// Starts the trade by creating and populating an escrow account and transferring ownership of the given temp token account to the PDA
+    ///
+    ///
+    /// Accounts expected:
+    ///
+    /// 0. `[signer]` The account of the person initializing the escrow
+    /// 1. `[writable]` Temporary token account that should be created prior to this instruction and owned by the initializer
+    /// 2. `[]` The initializer's token account for the token they will receive should the trade go through
+    /// 3. `[writable]` The escrow account, it will hold all necessary info about the trade.
+    /// 4. `[]` The token program
+    InitEscrow {
+        /// The amount party A expects to receive of token Y
+        amount: u64
+    }
+}
+
+impl EscrowInstruction {
+    /// Unpacks a byte buffer into a [EscrowInstruction](enum.EscrowInstruction.html).
+    pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
+        let (tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
+
+        Ok(match tag {
+            0 => Self::InitEscrow {
+                amount: unpack_amount(rest)?,
+            },
+            _ => return Err(InvalidInstruction.into()),
+        })
+    }
+
+    fn unpack_amount(input: &[u8]) -> Result<u64, EscrowError> {
+        let amount = input
+            .get(..8)
+            .and_then(|slice| slice.try_into().ok())
+            .map(u64::from_le_bytes)
+            .ok_or(InvalidInstruction)?;
+        Ok(amount)
+    }
+}
+```
+
+`unpack` expects a [reference](https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html) to a slice of `u8`. It looks at the first byte and uses that to determine how to decode the rest of the slice. For now, we'll leave it at one instruction.
+
+This won't compile because we are using an undefined error. Let's add that error next.
+
+### error.rs
+
+test

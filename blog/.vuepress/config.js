@@ -2,6 +2,9 @@
 module.exports = {
     title: 'paulx_blog',
     theme: '@vuepress/theme-blog',
+    markdown: {
+      lineNumbers: true
+    },
     themeConfig: {
         lastUpdated: 'LastUpdated',
         footer: {
