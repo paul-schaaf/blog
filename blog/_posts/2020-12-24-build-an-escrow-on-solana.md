@@ -65,7 +65,7 @@ We can see that the BPF loader we are using requires the entrypoint function to 
 > Solana programs are stateless
 
 If you want to store state, use accounts. Programs themselves are stored in accounts which are marked `executable`. Each account can hold data and Sol.
-Each account also has an `owner` and only the owner may debit the account and adjust it's data. Crediting may be done by anyone. Here's an example of an [account](https://explorer.solana.com/address/6TkKqq15wXjqEjNg9zqTKADwuVATR9dW3rkNnsYme1ea). As you can see in the example account, it has its owner field set to the `System Program`. As a matter of fact,
+Each account also has an `owner` and only the owner may debit the account and adjust its data. Crediting may be done by anyone. Here's an example of an [account](https://explorer.solana.com/address/6TkKqq15wXjqEjNg9zqTKADwuVATR9dW3rkNnsYme1ea). As you can see in the example account, it has its owner field set to the `System Program`. As a matter of fact,
 
 > Accounts can only be owned by programs
 
@@ -75,13 +75,13 @@ Now you might be thinking "does that mean that my own SOL account is actually no
 
 If you look at the program you'll see that although the program has full autonomy over all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited. 
 
-> In theory, programs have full autonomy over the accounts they own. It is up to the program's creator to limit this autonomy and up to the user's of the contract to verify the program's creator has really done so
+> In theory, programs have full autonomy over the accounts they own. It is up to the program's creator to limit this autonomy and up to the users of the program to verify the program's creator has really done so
 
 We'll get to how a program can check whether a transaction has been signed and how a program becomes the owner of an account in a bit. Before we conclude the entrypoint section, there is one more thing to know.
 
 > All accounts to be read or written to must be passed into the entrypoint function
 
-This allows the runtime to parallelise transactions (among even more other things? I'm not sure here myself). If the runtime knows all the accounts that will be written to and read by everyone at all times it can run those transactions in parallel that do not touch the same accounts or touch the same accounts but only read and don't write.
+This allows the runtime to parallelise transactions (among even more other things? I'm not sure here myself). If the runtime knows all the accounts that will be written to and read by everyone at all times it can run those transactions in parallel that do not touch the same accounts or touch the same accounts but only read and don't write. If a transaction violates this constraint and reads or writes to an account of which the runtime has not been notified, the transaction will fail.
 
 Now, to finally conclude this section, create a new `entrypoint.rs` file next to `lib.rs` and move the lib code there. Finally, register the entrypoint module inside `lib.rs`.
 
@@ -89,6 +89,14 @@ Now, to finally conclude this section, create a new `entrypoint.rs` file next to
 // inside lib.rs, only the following line should be in here
 pub mod entrypoint;
 ```
+
+#### recap
+
+- each program has an entrypoint whose structure depends on which BPF Loader is used
+- accounts are used to store state
+- accounts are owned by programs
+- only the account owner may debit an account and adjust its data
+- all accounts to be written to or read must be passed into the entrypoint
 
  
 <!-- Below is the program structure that we will end up with. It's rougly what you'll see in the official solana programs such as the [token program](https://github.com/solana-labs/solana-program-library/tree/master/token/program/src) as well.
