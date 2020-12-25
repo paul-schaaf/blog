@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@vuepress/plugin-last-updated": "^1.7.1",
     "@vuepress/theme-blog": "^2.3.3",
     "vuepress": "^1.7.1",
     "vuepress-plugin-container": "^2.1.5"

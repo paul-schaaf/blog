@@ -17,5 +17,14 @@ module.exports = {
             ]
         },
         summary: false
-    }
+    },
+    plugins: [
+      [
+        'vuepress-plugin-container',
+        {
+          type: 'last-updated',
+          defaultTitle: '<div class="last-updated"><span class="title">Last Updated: </span>{{$page.lastUpdated}}</div>'
+        },
+      ],
+    ]
 }
