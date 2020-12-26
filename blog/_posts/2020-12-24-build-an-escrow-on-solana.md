@@ -91,14 +91,7 @@ Now, to finally conclude this section, create a new `entrypoint.rs` file next to
 pub mod entrypoint;
 ```
 
-The src folder:
-```
-.
-├─ entrypoint.rs
-├─ lib.rs
-```
-
-#### recap
+#### theory recap
 
 - each program has an entrypoint whose structure depends on which BPF Loader is used
 - accounts are used to store state
@@ -163,7 +156,10 @@ The naive way one might connect Alice's main account to her token accounts is by
 of the token account. Clearly, this would not be sustainable if Alice owned many tokens because that would require her to keep a private key for each token account.
 
 It would be much easier for Alice if she just had one private key for all her token accounts and this is exactly how the token program does it!
-It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. This new token owner attribute is something the token program declares in user-space. It's encoded inside a token account's `data`, in addition to other properties such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx with the private key of their main account.
+It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. This new token owner attribute is something the token program declares in user space. It's encoded inside a token account's `data`, in addition to other properties such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx with the private key of their main account.
+
+> All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information.
+
 We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/FpYU4M8oH9pfUqzpff44gsGso96MUKW1G1tBZ9Kxcb7d?cluster=mainnet-beta).
 
 You've probably noticed the `mint` field in the explorer. This is how we know which token the token account belongs to. For each token there is 1 mint account that holds the token's metadata such as the supply. We'll need this field later to verify that the token accs Alice and Bob use really belong to asset X and Y and that neither party is sneaking in a wrong asset.
@@ -175,19 +171,27 @@ With all this in mind, we can create populate our world with more information:
 Now we know how all those accounts are connected but we don't know yet how Alice can transfer tokens to the escrow. We'll cover this now.
 #### transferring ownership
 
-The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user-space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade. Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
+The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade. Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
 
 ![](../images/2020-12-24/2020-12-24-escrow-sketch-3.png)
 
 There is one more problem here. What exactly does Alice transfer ownership to? Enter [_Program Derived Addresses_](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses).
 
+#### theory recap
+
+- developers should use the `data` field to save data inside accounts
+- the token program owns token accounts which - inside their `data` field - hold [relevant information](https://github.com/solana-labs/solana-program-library/blob/master/token/program/src/state.rs#L86
+- the token program also owns token mint accounts with [relevant data](https://github.com/solana-labs/solana-program-library/blob/master/token/program/src/state.rs#L86)
+- each token account holds a reference to their token mint account, thereby stating which token mint they belong to
+- the token program allows the (user space) owner of a token account to transfer its ownership to another address
+
 ### Program Derived Addresses (PDAs) Part 1
 
-Transferring ownership to the account the program is stored at is a bad idea. The program's deployer might have the private key to that address and you don't want them to own your funds. The question is, then, can programs be given user-space ownership of a token account?
+Transferring ownership to the account the program is stored at is a bad idea. The program's deployer might have the private key to that address and you don't want them to own your funds. The question is then, can programs be given user space ownership of a token account?
 
 ![](../images/2020-12-24/2020-12-24_no_but_yes.jpg)
 
-The trick is to assign token account ownership to a _Program Derived Address_ of the escrow program. For now, it is enough for you to know this address exists and we can use it to let a program sign transactions or assign it user-space ownership of accounts. We will cover PDAs in depth later but for now let's go back to coding!
+The trick is to assign token account ownership to a _Program Derived Address_ of the escrow program. For now, it is enough for you to know this address exists and we can use it to let a program sign transactions or assign it user space ownership of accounts. We will cover PDAs in depth later but for now let's go back to coding!
 
 ### instruction.rs Part 2
 
@@ -215,24 +219,44 @@ pub enum EscrowInstruction {
 }
 ```
 
-Although `instruction.rs` does not touch accounts, it is helpful to define which accounts you expect here so all the required calling info is in one place and easy to find for others. Additionally, it's helpful to add required account properties into brackets. The `writable` property should remind you of the parallelisation I explained above. If the caller does not mark the account `writable` in their calling code but the program attempts to write to it, the transaction will fail.
+Although `instruction.rs` does not touch accounts, it is helpful to define which accounts you expect here so all the required calling info is in one place and easy to find for others. Additionally, it's helpful to add required account properties inside brackets. Note that everything after the `///` is a comment an has no effect on the program, it's only there for documentation purposes. The `writable` property should remind you of the parallelisation I explained above. If the caller does not mark the account `writable` in their calling code but the program attempts to write to it, the transaction will fail.
 
 Let me explain why the endpoint looks like it does:
 
-1. We need Account 0 and specifically Account 0 as a signer because transferring the ownership of the temporary account requires Alice's signature.
-2. Account 1 is the temp token X account which needs to be writable. This is because changing token account ownership is a user-space change which means the `data` field of the account will be changed
-3. Account 2 is Alice's token Y account.
-4. Account 3 is the escrow account which also needs to be writable because the program will write the escrow information into it
-5. Account 4 is the account of the token program itself. I will explain why we need this account when we get to writing the processor code
-6. Finally, the program requires the amount of token Y that Alice wants to receive for her X tokens. This amount is not provided through an account but through the `instruction_data`.
+```
+0. `[signer]` The account of the person initializing the escrow
+```
+We need Account 0 and specifically Account 0 as a signer because transferring the ownership of the temporary account requires Alice's signature.
+```
+1. `[writable]` Temporary token account that should be created prior to this instruction and owned by the initializer
+```
+Account 1 is the temp token X account which needs to be writable. This is because changing token account ownership is a user space change which means the `data` field of the account will be changed
+```
+2. `[]` The initializer's token account for the token they will receive should the trade go through
+```
+Account 2 is Alice's token Y account. While it will be written to eventually, it won't happen in this transaction which is why we can leave the brackets empty (implying read-only)
+```
+3. `[writable]` The escrow account, it will hold all necessary info about the trade.
+```
+Account 3 is the escrow account which also needs to be writable because the program will write the escrow information into it
+```
+4. `[]` The token program
+```
+Account 4 is the account of the token program itself. I will explain why we need this account when we get to writing the processor code
+``` rust
+InitEscrow {
+    /// The amount party A expects to receive of token Y
+    amount: u64
+}
+```
+Finally, the program requires the amount of token Y that Alice wants to receive for her X tokens. This amount is not provided through an account but through the `instruction_data`.
 
-`instruction.rs` is only responsible for decoding `instruction_data` so that's that we'll do next.
+`instruction.rs` is responsible for decoding `instruction_data` so that's that we'll do next.
 
 ``` rust{2-4,24-45}
 // inside instruction.rs
-use crate::error::{EscrowError, EscrowError::InvalidInstruction};
-use solana_program::program_error::ProgramError;
 use std::convert::TryInto;
+use crate::error::{EscrowError, EscrowError::InvalidInstruction};
 
  pub enum EscrowInstruction {
 
@@ -254,14 +278,14 @@ use std::convert::TryInto;
 
 impl EscrowInstruction {
     /// Unpacks a byte buffer into a [EscrowInstruction](enum.EscrowInstruction.html).
-    pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
+    pub fn unpack(input: &[u8]) -> Result<Self, EscrowError> {
         let (tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
 
         Ok(match tag {
             0 => Self::InitEscrow {
                 amount: unpack_amount(rest)?,
             },
-            _ => return Err(InvalidInstruction.into()),
+            _ => return Err(InvalidInstruction),
         })
     }
 
@@ -276,7 +300,7 @@ impl EscrowInstruction {
 }
 ```
 
-`unpack` expects a [reference](https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html) to a slice of `u8`. It looks at the first byte and uses that to determine how to decode the rest of the slice. For now, we'll leave it at one instruction.
+`unpack` expects a [reference](https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html) to a slice of `u8`. It looks at the first byte to determine how to decode the rest of the slice. For now, we'll leave it at one instruction (ignoring the instruction where Bob takes the trade).
 
 This won't compile because we are using an undefined error. Let's add that error next.
 
