@@ -38,7 +38,7 @@ I'll end this background section here. The internet already has a lot of materia
 ## Building the escrow program
 
 ### Setting up the project
-Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now.
+Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools.
 
 If you don't know how to test solana programs yet, remove all the testing code. Testing programs is a topic for another blog post. Remove the testing code in `entrypoint.rs` as well as the `tests` folder next to `src`. Lastly, remove the testing dependencies from `Cargo.toml`. It should now look like this:
 
@@ -75,7 +75,7 @@ Now you might be thinking "does that mean that my own SOL account is actually no
 
 ![](../images/2020-12-24/2020-12-24-always-has-been.jpeg)
 
-If you look at the program you'll see that although the program has full autonomy over all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited. 
+[If you look at the program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs#L181) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited. 
 
 > In theory, programs have full autonomy over the accounts they own. It is up to the program's creator to limit this autonomy and up to the users of the program to verify the program's creator has really done so
 
