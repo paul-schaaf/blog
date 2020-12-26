@@ -282,4 +282,27 @@ This won't compile because we are using an undefined error. Let's add that error
 
 ### error.rs
 
-test
+Create a new file `error.rs` next to the others and register it inside `lib.rs`. Then, add the following dependency to your `Cargo.toml`
+
+``` toml
+...
+[dependencies]
+thiserror = "1.0.21"
+...
+```
+
+and the following code to `error.rs`.
+
+``` rust
+// inside error.rs
+use thiserror::Error;
+
+#[derive(Error)]
+pub enum EscrowError {
+    /// Invalid instruction
+    #[error("Invalid Instruction")]
+    InvalidInstruction,
+}
+```
+
+What we are doing here is [defining an error type](https://doc.rust-lang.org/rust-by-example/error/multiple_error_types/define_error_type.html). Instead of having to write the `fmt::Display` implementation ourselves as is done in the example the link points to, we use the handy [thiserror](https://docs.rs/thiserror/1.0.22/thiserror/) library that does it for us using the `#[error("..")]` notation. This will become especially useful when we add more errors later on.
