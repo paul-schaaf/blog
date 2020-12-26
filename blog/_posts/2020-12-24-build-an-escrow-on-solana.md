@@ -7,9 +7,10 @@ tags:
     - coding
 ---
 
-::: last-updated
+::: blog-meta
 :::
 
+## Intro
 This guide is meant to serve as an intro to coding on [Solana](https://www.solana.com),
 using an escrow program as an example. We'll go through the code together, building the escrow program step by step.
 

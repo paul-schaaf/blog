@@ -25,9 +25,10 @@ module.exports = {
       [
         'vuepress-plugin-container',
         {
-          type: 'last-updated',
-          defaultTitle: '<div class="last-updated"><span class="title">Last Updated: </span>{{$page.lastUpdated}}</div>'
+          type: 'blog-meta',
+          defaultTitle: '<div class="blog-meta"><span class="title">Last updated: </span>{{$page.lastUpdated}}<p class="margin-bottom-zero"><span class="title">Time to read: </span>{{$page.readingTime.minutes}} minutes</p></div>'
         },
       ],
+      'vuepress-plugin-reading-time'
     ]
 }
