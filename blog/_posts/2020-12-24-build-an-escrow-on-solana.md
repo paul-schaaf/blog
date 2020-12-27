@@ -113,12 +113,12 @@ we will structure our program as well.
 ```
 .
 ├─ src
-│  ├─ lib.rs
-│  ├─ entrypoint.rs
-│  ├─ instruction.rs
-│  ├─ processor.rs
-│  ├─ state.rs
-│  ├─ error.rs
+│  ├─ lib.rs -> registering modules
+│  ├─ entrypoint.rs -> entrypoint to the program
+│  ├─ instruction.rs -> program API, (de)serializing instruction data
+│  ├─ processor.rs -> program logic
+│  ├─ state.rs -> program objects, (de)serializing state
+│  ├─ error.rs -> program specific errors
 ├─ .gitignore
 ├─ Cargo.lock
 ├─ Cargo.toml
@@ -183,7 +183,7 @@ There is one more problem here. What exactly does Alice transfer ownership to? E
 #### theory recap
 
 - developers should use the `data` field to save data inside accounts
-- the token program owns token accounts which - inside their `data` field - hold [relevant information](https://github.com/solana-labs/solana-program-library/blob/master/token/program/src/state.rs#L86
+- the token program owns token accounts which - inside their `data` field - hold [relevant information](https://github.com/solana-labs/solana-program-library/blob/master/token/program/src/state.rs#L86)
 - the token program also owns token mint accounts with [relevant data](https://github.com/solana-labs/solana-program-library/blob/master/token/program/src/state.rs#L86)
 - each token account holds a reference to their token mint account, thereby stating which token mint they belong to
 - the token program allows the (user space) owner of a token account to transfer its ownership to another address
@@ -449,3 +449,134 @@ if escrow_info.is_initialized() {
 ```
 
 Add the highlighted lines again. Something unfamiliar is happening here. For the first time, we are accessing the `data` field. Because `data` is also just an array of `u8`, we need to deserialize it with `Escrow::unpack_unchecked`. This is a function inside `state.rs` which we'll create in the next section.
+
+### state.rs
+
+Create `state.rs` and register it inside `lib.rs`. The state file is responsible for 1) defining state objects that the processor can use 2) serializing and deserializing such objects from and into arrays of `u8` respectively.
+
+Start by adding the following to `state.rs`.
+
+``` rust
+use solana_program::pubkey::Pubkey;
+
+pub struct Escrow {
+    pub is_initialized: bool,
+    pub initializer_pubkey: Pubkey,
+    pub initializer_temp_token_account_pubkey: Pubkey,
+    pub initializer_receiving_token_account_pubkey: Pubkey,
+    pub expected_amount: u64,
+}
+```
+
+We need to save `initializer_temp_token_account_pubkey` so that when Bob takes the trade, the escrow program can send tokens from the account at `initializer_temp_token_account_pubkey` to Bob's account. We already know that Bob will have to pass in the account into his entrypoint call eventually so why do we save it here? First, if we save its public key here, Bob can easily find the address of the accounts he needs to pass into the entrypoint. Otherwise Alice would have to send him not only the escrow acount address but also all her account addresses. Secondly, and more important for security is that Bob could pass in a different token account. Nothing stops him from doing so if we don't add a check requiring him to pass in the account with `initializer_temp_token_account_pubkey` as its public key. And to add that check later in the processor, we need the InitEscrow instruction to save the `initializer_temp_token_account_pubkey`.
+
+> When writing Solana programs, be mindful of the fact that any accounts may be passed into the entrypoint, including different ones than those defined in the API inside `instruction.rs`. It's the program's responsibility to check that `received accounts == expected accounts`
+
+`initializer_receiving_token_account_pubkey` needs to be saved so that when Bob takes the trade, his tokens can be sent to that account. `expected_amount` will be used to check that Bob sends enough of his token. That leaves `initializer_pubkey` and `is_initialized`. I'll explain the latter now and the former later on.
+
+We use `is_initialized` to determine whether a given escrow account is already in use. This, serialization, and deserialization are all standardized in the [traits](https://doc.rust-lang.org/book/ch10-02-traits.html) of the [`program pack` module](https://docs.rs/solana-program/1.5.0/solana_program/program_pack/index.html). First, implement `Sealed` and `IsInitialized`. 
+
+``` rust
+use solana_program::{
+    program_pack::{IsInitialized, Pack, Sealed},
+    pubkey::Pubkey,
+};
+...
+impl Sealed for Escrow {}
+
+impl IsInitialized for Escrow {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+```
+
+`Sealed` is just Solana's version of Rust's `Sized` trait although there does not seem to be any difference between the two.
+Now, `Pack`, which relies on `Sealed` and in our case also on `IsInitialized` being implemented. It's a big but simple blog of code. I'll split it into 2 parts. Let's start with the first one:
+
+``` rust
+use solana_program::{
+    program_pack::{IsInitialized, Pack, Sealed},
+    pubkey::Pubkey,
+};
+
+use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
+use crate::error::EscrowError;
+...
+impl Pack for Escrow {
+    const LEN: usize = 105;
+    fn unpack_from_slice(src: &[u8]) -> Result<Self, EscrowError> {
+        let src = array_ref![src, 0, Escrow::LEN];
+        let (
+            is_initialized,
+            initializer_pubkey,
+            sending_token_account_pubkey,
+            receiving_token_account_pubkey,
+            expected_amount,
+        ) = array_refs![src, 1, 32, 32, 32, 8];
+        let is_initialized = match is_initialized {
+            [0] => false,
+            [1] => true,
+            _ => return Err(ProgramError::InvalidAccountData),
+        };
+
+        Ok(Escrow {
+            is_initialized,
+            initializer_pubkey: Pubkey::new_from_array(*initializer_pubkey),
+            sending_token_account_pubkey: Pubkey::new_from_array(*sending_token_account_pubkey),
+            receiving_token_account_pubkey: Pubkey::new_from_array(*receiving_token_account_pubkey),
+            expected_amount: u64::from_le_bytes(*expected_amount),
+        })
+    }
+}
+```
+
+The first requirement for something implementing `Pack` is defining `LEN` which is the size of our type. Looking at our Escrow struct, we can see calculate the length of the struct by adding the sizes of the individual data types: `1 (bool) + 3 * 32 (Pubkey) + 1 * 8 (u64) = 105`.  It's okay to use an entire `u8` for the bool since it'll make our coding easier and the cost of those extra wasted bits is infinitesimal.
+
+Next up, we implement `unpack_from_slice` which will turn an array of `u8` into an instance of the Escrow struct we defined above. Nothing too interesting happens here. Notable here is the use of [arrayref](https://docs.rs/arrayref/0.3.6/arrayref/), a library for getting references to sections of a slice. The docs should be enough to understand the (just 4) different functions from the library. Make sure to add the library to `Cargo.toml`.
+
+``` toml
+...
+[dependencies]
+...
+arrayref = "0.3.6"
+...
+```
+
+We can now deserialize state, serialization is next.
+
+``` rust
+...
+impl Pack for Escrow {
+    ...
+    fn pack_into_slice(&self, dst: &mut [u8]) {
+        let dst = array_mut_ref![dst, 0, Escrow::LEN];
+        let (
+            is_initialized_dst,
+            initializer_pubkey_dst,
+            sending_token_account_pubkey_dst,
+            receiving_token_account_pubkey_dst,
+            expected_amount_dst,
+        ) = mut_array_refs![dst, 1, 32, 32, 32, 8];
+
+        let Escrow {
+            is_initialized,
+            initializer_pubkey,
+            sending_token_account_pubkey,
+            receiving_token_account_pubkey,
+            expected_amount,
+        } = self;
+
+        is_initialized_dst[0] = *is_initialized as u8;
+        initializer_pubkey_dst.copy_from_slice(initializer_pubkey.as_ref());
+        sending_token_account_pubkey_dst.copy_from_slice(sending_token_account_pubkey.as_ref());
+        receiving_token_account_pubkey_dst.copy_from_slice(receiving_token_account_pubkey.as_ref());
+        *expected_amount_dst = expected_amount.to_le_bytes();
+    }
+}
+```
+
+This is pretty much the same as the `unpack_from_slice` function, just vice versa! This time, we also pass in `&self`. We didn't have to do this inside `unpack_from_slice` because _there was no self_ yet. `unpack_from_slice` was a static constructor function returning a new instance of an escrow struct. When we `pack_into_slice`, we already have an instance of an Escrow struct and now serialize it into the given `dst` slice. And that's it for `state.rs`! But wait, if we look back into `processor.rs`, we call `unpack_unchecked`, a function we didn't define, so where is it coming from? The answer is that traits can have default functions that may be overridden but don't have to be.
+[Look here](https://docs.rs/solana-program/1.5.0/src/solana_program/program_pack.rs.html#29-39) to find out about the default functions. With `state.rs` done, let's go back to the `process_init_escrow` function.
+
+### Processor Part 2
