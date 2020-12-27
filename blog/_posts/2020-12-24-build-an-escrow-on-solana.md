@@ -333,3 +333,115 @@ pub enum EscrowError {
 ```
 
 What we are doing here is [defining an error type](https://doc.rust-lang.org/rust-by-example/error/multiple_error_types/define_error_type.html). Instead of having to write the `fmt::Display` implementation ourselves as is done in the example the link points to, we use the handy [thiserror](https://docs.rs/thiserror/1.0.22/thiserror/) library that does it for us using the `#[error("..")]` notation. This will become especially useful when we add more errors later on.
+
+### processor.rs Part 1, starting to process the InitEscrow instruction
+
+After creating the entrypoint, an InitEscrow endpoint, and our first error, we can finally move on to code `processor.rs`. This is where the magic happens.
+Start by creating `processor.rs` and registering it inside `lib.rs`. Then paste the following into `processor.rs`.
+
+``` rust
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    msg,
+    pubkey::Pubkey,
+};
+
+use crate::instruction::EscrowInstruction;
+
+pub struct Processor;
+impl Processor {
+    pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+        let instruction = EscrowInstruction::unpack(instruction_data)?;
+
+        match instruction {
+            EscrowInstruction::InitEscrow { amount } => {
+                msg!("Instruction: InitEscrow");
+                return Self::process_init_escrow(accounts, amount, program_id);
+            }
+        };
+        Ok(())
+    }
+}
+```
+
+Let's start unpacking what's happening. First, we pass the reference to the slice holding the `instruction_data` from `entrypoint.rs` into the `unpack` function we created earlier ([Note the `?` after the function call](https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html?highlight=question,mark#a-shortcut-for-propagating-errors-the--operator)). We use `match` to figure out which processing function to call. Trivial, for now. `msg!` logs where we are going.
+
+
+``` rust
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    entrypoint::ProgramResult,
+    program_error::ProgramError,
+    msg,
+    pubkey::Pubkey,
+};
+
+impl Processor {
+    ...
+    pub fn process_init_escrow(
+        accounts: &[AccountInfo],
+        amount: u64,
+        program_id: &Pubkey,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let initializer = next_account_info(account_info_iter)?;
+
+        if !initializer.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+    }
+}
+...
+```
+
+`process_init_escrow` is next. To be clear, `...` just means there is other stuff around the code you're seeing, don't copy those!
+Inside `process_init_escrow` we first create an iterator of accounts. It needs to be mutable so we can take elements out of it. The first account we expect - as defined in `instruction.rs` - is the escrow's initializer, i.e. Alice's main account. She needs to be a signer which we check right away. It's just a boolean field on `AccountInfo`.
+
+``` rust {14-19}
+...
+pub fn process_init_escrow(
+    accounts: &[AccountInfo],
+    amount: u64,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    let initializer = next_account_info(account_info_iter)?;
+
+    if !initializer.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    let temp_token_account = next_account_info(account_info_iter)?;
+
+    let received_token_account = next_account_info(account_info_iter)?;
+    if *received_token_account.owner != Pubkey::from_str(TOKEN_PROGRAM_ID).unwrap() {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+}
+...
+```
+
+Next, add the highlighted lines. The temporary token account needs to be writable but there is no need to explicitly check this. The transaction will fail automatically should Alice not mark the account as writable. You might ask yourself, "why do we check that the `received_token_account` is actually owned by the token program but don't do the same for the `temp_token_account`?". The answer is that later on in the function we will ask the token program to transfer ownership of the `temp_token_account` to the _PDA_. This transfer will fail if the `temp_token_account` is not owned by the token program, because - as I'm srure you remember - only programs that own accounts may change accounts. Hence, there is no need for us to add another check here.
+
+We don't make any changes to the `received_token_account` though. We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because of a check in the token program when transferring units of a token to a token account that references a different mint (or none at all). That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
+
+``` rust {9-14}
+...
+let temp_token_account = next_account_info(account_info_iter)?;
+
+let received_token_account = next_account_info(account_info_iter)?;
+if *received_token_account.owner != Pubkey::from_str(TOKEN_PROGRAM_ID).unwrap() {
+    return Err(ProgramError::IncorrectProgramId);
+}
+
+let escrow_account = next_account_info(account_info_iter)?;
+
+let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.data.borrow())?;
+if escrow_info.is_initialized() {
+    return Err(ProgramError::AccountAlreadyInitialized);
+}
+...
+```
+
+Add the highlighted lines again. Something unfamiliar is happening here. For the first time, we are accessing the `data` field. Because `data` is also just an array of `u8`, we need to deserialize it. We do this inside `state.rs` which we'll create in the next section.
