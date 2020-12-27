@@ -37,7 +37,7 @@ The blockchain way is to replace the trusted third party _C_ with code on a bloc
 
 I'll end this background section here. The internet already has a lot of material on escrows on blockchains. Let's now look at how to build such an escrow on Solana.
 
-## Building the escrow program
+## Building the escrow program - Alice's Transaction
 
 ### Setting up the project
 Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools.
@@ -577,6 +577,92 @@ impl Pack for Escrow {
 ```
 
 This is pretty much the same as the `unpack_from_slice` function, just vice versa! This time, we also pass in `&self`. We didn't have to do this inside `unpack_from_slice` because _there was no self_ yet. `unpack_from_slice` was a static constructor function returning a new instance of an escrow struct. When we `pack_into_slice`, we already have an instance of an Escrow struct and now serialize it into the given `dst` slice. And that's it for `state.rs`! But wait, if we look back into `processor.rs`, we call `unpack_unchecked`, a function we didn't define, so where is it coming from? The answer is that traits can have default functions that may be overridden but don't have to be.
-[Look here](https://docs.rs/solana-program/1.5.0/src/solana_program/program_pack.rs.html#29-39) to find out about the default functions. With `state.rs` done, let's go back to the `process_init_escrow` function.
+[Look here](https://docs.rs/solana-program/1.5.0/src/solana_program/program_pack.rs.html#29-39) to find out about `Pack`'s default functions. With `state.rs` done, let's go back to the `process_init_escrow` function.
 
-### Processor Part 2
+### Processor Part 2, PDAs Part 2, CPIs Part 1
+
+Let's finish the `process_init_escrow` function by first adding the state serialization. We've already created the escrow struct instance and checked that it is indeed uninitialized. Time to populate the struct's fields!
+
+``` rust {7-13}
+// inside process_init_escrow
+...
+let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.data.borrow())?;
+if escrow_info.is_initialized() {
+    return Err(ProgramError::AccountAlreadyInitialized);
+}
+
+escrow_info.is_initialized = true;
+escrow_info.initializer_pubkey = *initializer.key;
+escrow_info.sending_token_account_pubkey = *temp_token_account.key;
+escrow_info.receiving_token_account_pubkey = *received_token_account.key;
+escrow_info.expected_amount = amount;
+
+Escrow::pack(escrow_info, &mut escrow_account.data.borrow_mut())?;
+```
+
+Pretty straightforward. `pack` is another default function which internally calls our `pack_into_slice` function. There's one thing left to do inside `process_init_escrow`: transferring (user space) ownership of the temporary token account to the PDA. This is a good time to explain what PDAs actually are and why we might need the `program_id` inside a process function. Copy and look at the following code:
+
+``` rust
+// inside process_init_escrow
+...
+let (pda, _nonce) = Pubkey::find_program_address(&[b"escrow"], program_id);
+
+let token_program = next_account_info(account_info_iter)?;
+let owner_change_ix = set_token_authority(
+    token_program.key,
+    temp_token_account.key,
+    Some(&pda),
+    TokenAccountAuthority::AccountOwner,
+    initializer.key,
+    &[&initializer.key],
+)?;
+
+msg!("Calling the token program to transfer token account ownership...");
+invoke(
+    &owner_change_ix,
+    &[
+        temp_token_account.clone(),
+        initializer.clone(),
+        token_program.clone(),
+    ],
+)?;
+
+Ok(())
+// end of process_init_escrow
+```
+
+#### PDAs Part 2
+
+We create a PDA by passing in an array of seeds and the `program_id` into the `find_program_address` function. We get back a new `pda` and `nonce` with a 1/(2^255) chance the function fails ([2^255 is a BIG number](https://youtu.be/S9JGmA5_unY)). In our case the seeds can be static. There are cases such as in the [Associated Token Account program](https://github.com/solana-labs/solana-program-library/blob/596700b6b100902cde33db0f65ca123a6333fa58/associated-token-account/program/src/lib.rs#L24) where they aren't (cause different users should own different associated token accounts). We just need `1` PDA that can own `N` temporary token accounts for different escrows occuring at any and possibly the same point in time. Ok, but what _is_ a PDA? Normally, Solana key pairs use the `ed25519` standard. This means normal public keys lie on the `ed25519` elliptic curve. PDAs are public keys that are derived from the `program_id` and the seeds as well as having been pushed off the curve by the nonce. Hence,
+
+> Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
+
+They are just random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/1.5.0/src/solana_program/pubkey.rs.html#114)). We don't use the nonce here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
+
+#### CPIs Part 1
+
+For now, let's look at how we can transfer the (user space) ownership of the temporary token account to the PDA. To do this, we will call the token program from our escrow program. This is called a [_Cross-Program Invocation_](https://docs.solana.com/developing/programming-model/calling-between-programs#cross-program-invocations) and executed using either the `invoke` or the `invoke_signed` function. Here we use `invoke`. In Bob's transaction we will use `invoke_signed`. The difference will become clear then. `invoke` takes two arguments: an instruction and an array of accounts.
+
+We start by getting the token_program account. It's a rule that the program being called through a CPI must be included as an account in the 2nd argument of `invoke` (and `invoke_signed`). Next, we create the instruction. This is just the instruction that the token program would expect were we executing a normal call. The token program defines some helper functions inside its `instruction.rs` that we can make use of. Of particular interest to us is the `set_token_authority` function which is a builder function to create such an instruction. We pass in the token program id, then the account whose authority we'd like to change, the account that's the new authority (in our case the PDA), the type of authority change (there are different authority types for token accounts, we care about changing the owner), the current account owner (Alice -> initializer.key), and finally the public keys signing the CPI.
+
+The concept that is being used here is [_Signature Extension_](https://docs.solana.com/developing/programming-model/calling-between-programs#instructions-that-require-privileges). In short,
+
+> When including a `signed` account in a program call, in all CPIs made by that program inside the current instruction where that account is included the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
+
+In our case this means that because Alice signed the `InitEscrow` transaction, the program can make the CPI and include her pubkey as a signer pubkey. This is necessary because changing a token account's owner should of course require the approval of the current owner.
+
+Next to the instruction, we also need to pass in the accounts that are required by the instruction, in addition to the account of the program we are calling. You can look these up by going to the token programs `instruction.rs` and finding the setAuthority Enum whose comments will tell you which accounts are required.
+
+#### theory recap
+
+- Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
+- When including a `signed` account in a program call, in all CPIs made by that program inside the current instruction where that account is included the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
+
+> Congrats! You made it through the first half and learnt most of the important concepts. Bob's transaction will reuse much of we've already built and only introduce a couple new concepts. Because we've built a part of the program that is complete in itself, we can now try it out!
+
+### Trying out the program
+
+
+
+
+## Building the escrow program - Bob's Transaction
