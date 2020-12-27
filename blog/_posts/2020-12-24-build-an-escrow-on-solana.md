@@ -336,6 +336,8 @@ What we are doing here is [defining an error type](https://doc.rust-lang.org/rus
 
 ### processor.rs Part 1, starting to process the InitEscrow instruction
 
+#### pub fn process
+
 After creating the entrypoint, an InitEscrow endpoint, and our first error, we can finally move on to code `processor.rs`. This is where the magic happens.
 Start by creating `processor.rs` and registering it inside `lib.rs`. Then paste the following into `processor.rs`.
 
@@ -367,6 +369,8 @@ impl Processor {
 
 Let's start unpacking what's happening. First, we pass the reference to the slice holding the `instruction_data` from `entrypoint.rs` into the `unpack` function we created earlier ([Note the `?` after the function call](https://doc.rust-lang.org/book/ch09-02-recoverable-errors-with-result.html?highlight=question,mark#a-shortcut-for-propagating-errors-the--operator)). We use `match` to figure out which processing function to call. Trivial, for now. `msg!` logs where we are going.
 
+#### fn process_init_escrow
+
 
 ``` rust
 use solana_program::{
@@ -379,7 +383,7 @@ use solana_program::{
 
 impl Processor {
     ...
-    pub fn process_init_escrow(
+    fn process_init_escrow(
         accounts: &[AccountInfo],
         amount: u64,
         program_id: &Pubkey,
@@ -422,9 +426,9 @@ pub fn process_init_escrow(
 ...
 ```
 
-Next, add the highlighted lines. The temporary token account needs to be writable but there is no need to explicitly check this. The transaction will fail automatically should Alice not mark the account as writable. You might ask yourself, "why do we check that the `received_token_account` is actually owned by the token program but don't do the same for the `temp_token_account`?". The answer is that later on in the function we will ask the token program to transfer ownership of the `temp_token_account` to the _PDA_. This transfer will fail if the `temp_token_account` is not owned by the token program, because - as I'm srure you remember - only programs that own accounts may change accounts. Hence, there is no need for us to add another check here.
+Next, add the highlighted lines. The temporary token account needs to be writable but there is no need to explicitly check this. The transaction will fail automatically should Alice not mark the account as writable. You might ask yourself, "why do we check that the `received_token_account` is actually owned by the token program but don't do the same for the `temp_token_account`?". The answer is that later on in the function we will ask the token program to transfer ownership of the `temp_token_account` to the _PDA_. This transfer will fail if the `temp_token_account` is not owned by the token program, because - as I'm sure you remember - only programs that own accounts may change accounts. Hence, there is no need for us to add another check here.
 
-We don't make any changes to the `received_token_account` though. We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because of a check in the token program when transferring units of a token to a token account that references a different mint (or none at all). That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
+We don't make any changes to the `received_token_account` though. We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because the token program will attempt to send the Y tokens to Alice but not be the owner of the `received_token_account`. That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
 
 ``` rust {9-14}
 ...
@@ -444,4 +448,4 @@ if escrow_info.is_initialized() {
 ...
 ```
 
-Add the highlighted lines again. Something unfamiliar is happening here. For the first time, we are accessing the `data` field. Because `data` is also just an array of `u8`, we need to deserialize it. We do this inside `state.rs` which we'll create in the next section.
+Add the highlighted lines again. Something unfamiliar is happening here. For the first time, we are accessing the `data` field. Because `data` is also just an array of `u8`, we need to deserialize it with `Escrow::unpack_unchecked`. This is a function inside `state.rs` which we'll create in the next section.
