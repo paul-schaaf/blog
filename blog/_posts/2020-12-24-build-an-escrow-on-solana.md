@@ -651,18 +651,47 @@ The concept that is being used here is [_Signature Extension_](https://docs.sola
 
 In our case this means that because Alice signed the `InitEscrow` transaction, the program can make the CPI and include her pubkey as a signer pubkey. This is necessary because changing a token account's owner should of course require the approval of the current owner.
 
-Next to the instruction, we also need to pass in the accounts that are required by the instruction, in addition to the account of the program we are calling. You can look these up by going to the token programs `instruction.rs` and finding the setAuthority Enum whose comments will tell you which accounts are required.
+Next to the instruction, we also need to pass in the accounts that are required by the instruction, in addition to the account of the program we are calling. You can look these up by going to the token programs `instruction.rs` and finding the setAuthority Enum whose comments will tell you which accounts are required (in our case, the current Owner's account and the account whose owner is to be changed).
 
 #### theory recap
 
 - Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
 - When including a `signed` account in a program call, in all CPIs made by that program inside the current instruction where that account is included the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
 
-> Congrats! You made it through the first half and learnt most of the important concepts. Bob's transaction will reuse much of we've already built and only introduce a couple new concepts. Because we've built a part of the program that is complete in itself, we can now try it out!
+### Trying out the program, understanding program calls
 
-### Trying out the program
+Because we've built a part of the program that is complete in itself, we can now try it out! In doing so, we can acquire more knowledge about Solana.
 
+You can use this UI to try out your program. I have explained how it works and what you need to do to make it work below. Feel free to build your own!
 
+#### Deploying your program on devnet
+First, use the `cargo build-bpf` command to compile your program to a file with the `so` file extension. You should also create a personal account using the solana dev tools and airdrop some SOL into it _on devnet_. Then, use the `solana deploy` command to deploy the program to devnet.
+
+``` shell
+solana deploy --url https://devnet.solana.com PATH_TO_YOUR_PROGRAM
+```
+
+The `deploy` command should print the program id which you can now paste into the UI above. 
+
+#### Creating tokens for testing on devnet
+
+You'll also need a token to put into the escrow so head over to the [SPL Token UI](https://www.spl-token-ui.com) (and to [sollet.io](https://www.sollet.io) to create yourself an account you can use in the SPL Token UI, if you haven't already). Select `devnet` in the top right and click on `SOL Airdrop` inside the `Airdrops` tab. Click on `Derive public key from external wallet` to fill out the form using `sollet` and request the airdrop.
+
+During the next steps, you will create 2 tokens X and Y and 2 token accounts, Alice's X and Alice's Y account. After each step, copy the account address and put it into the appropriate UI field. You could also write them down somewhere else so can reuse them when eventually testing the entire escrow, including Bob's transaction.
+
+Start by heading over to `Create new token` inside the `Tokens` tab. Fill out the mint authority with your sollet pubkey and create the new token. Keep in mind, this is the _token mint account_ for token X, i.e. the account that holds all the metadata of the token e.g. its supply and who is allowed to mint it (if you set the mint authority correctly, that should be your sollet pubkey! You can verify this in the explorer).
+
+Next, go to `Create account` inside the `Accounts` tab and fill in the address of the token you just created and use your sollet pubkey as the account owner. Create an account (doesn't matter whether it's associated or not). This is Alice's token X token account.
+
+Then, go to `Edit account` inside the `Accounts` tab. The `mint` option is selected by default. Put in Alice's token X token account (the one you just created) as the destination account and some number in the amount field. Click `Mint to account`.
+
+Go through the same steps for token Y. You don't have to mint tokens to Alice's token Y account.
+
+#### Creating the escrow
+
+With all the steps completed, all that is left to do is to fill in Alice's expected amount and the amount she wants to put into the escrow. Fill in both numbers (the 2nd needs to be lower than what you minted to Alice's account) and hit `Init Escrow`. Once the tx has gone through successfully, copy the returned escrow address, put it into the escrow address field, and click `Inspect Escrow`.
+
+#### Understanding what just happened
 
 
 ## Building the escrow program - Bob's Transaction
