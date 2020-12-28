@@ -735,6 +735,24 @@ In our case this means that because Alice signed the `InitEscrow` transaction, t
 
 Next to the instruction, we also need to pass in the accounts that are required by the instruction, in addition to the account of the program we are calling. You can look these up by going to the token programs `instruction.rs` and finding the setAuthority Enum whose comments will tell you which accounts are required (in our case, the current Owner's account and the account whose owner is to be changed).
 
+Finally, adjust `entrypoint.rs` so it looks like this:
+``` rust
+use solana_program::{
+    account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, pubkey::Pubkey
+};
+
+use crate::processor::Processor;
+
+entrypoint!(process_instruction);
+fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    Processor::process(program_id, accounts, instruction_data)
+}
+```
+
 #### theory recap
 
 - Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
