@@ -662,7 +662,9 @@ Next to the instruction, we also need to pass in the accounts that are required 
 
 Because we've built a part of the program that is complete in itself, we can now try it out! In doing so, we can acquire more knowledge about Solana.
 
-You can use this UI to try out your program. I have explained how it works and what you need to do to make it work below. Feel free to build your own!
+You can use this UI to try out your program. I explain how it works and what you need to do to make it work below. Feel free to build your own!
+
+<Escrow/>
 
 #### Deploying your program on devnet
 First, use the `cargo build-bpf` command to compile your program to a file with the `so` file extension. You should also create a personal account using the solana dev tools and airdrop some SOL into it _on devnet_. Then, use the `solana deploy` command to deploy the program to devnet.
@@ -689,7 +691,7 @@ Go through the same steps for token Y. You don't have to mint tokens to Alice's 
 
 #### Creating the escrow
 
-With all the steps completed, all that is left to do is to fill in Alice's expected amount and the amount she wants to put into the escrow. Fill in both numbers (the 2nd needs to be lower than what you minted to Alice's account) and hit `Init Escrow`. Once the tx has gone through successfully, copy the returned escrow address, put it into the escrow address field, and click `Inspect Escrow`.
+With all the steps completed, all that is left to do is to fill in Alice's expected amount and the amount she wants to put into the escrow. Fill in both numbers (the 2nd needs to be lower than what you minted to Alice's account) and hit `Init Escrow`.
 
 #### Understanding what just happened
 
