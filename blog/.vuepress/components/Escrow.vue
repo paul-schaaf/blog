@@ -44,14 +44,14 @@ export default {
     },
     methods: {
         resetAliceUI() {
-            this.programId = 0;
+            this.programId = "";
             this.aliceTokenXPubkey = "";
             this.aliceTokenYPubkey = "";
             this.amountXTokensToSendToEscrow = 0;
             this.amountYTokensAliceExpects = 0;
         },
         initEscrow() {
-            
+
         }
     }
 }

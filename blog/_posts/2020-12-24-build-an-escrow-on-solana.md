@@ -16,9 +16,10 @@ using an escrow program as an example. We'll go through the code together, build
 
 > On Solana, smart contracts are called _programs_.
 
-The post switches between theory and practice often to keep it engaging. It requires no previous knowledge of Solana.
-While this is not a Rust tutorial, I will link to the [Rust docs](https://doc.rust-lang.org/book) whenever I introduce a new concept.
+Most of the info in this blog post can be found somewhere in the docs or in example programs. Having said this, I have not found a guide that both walks through most of the coding theory step by step and applies it in practice. I hope this post achieves this, interweaving the theory and practice of solana programs. It requires no previous knowledge of Solana. While this is not a Rust tutorial, I will link to the [Rust docs](https://doc.rust-lang.org/book) whenever I introduce a new concept.
 I will also link to the relevant Solana docs although you don't have to read them to follow along.
+
+I do not claim to explain _all_ topics but hope this will be a solid starting point from which the reader can explore Solana further.
 
 ## The Final Product
 
@@ -77,7 +78,7 @@ Now you might be thinking "does that mean that my own SOL account is actually no
 
 ![](../images/2020-12-24/2020-12-24-always-has-been.jpeg)
 
-[If you look at the program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs#L181) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited. 
+[If you look at the system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs#L179) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited. 
 
 > In theory, programs have full autonomy over the accounts they own. It is up to the program's creator to limit this autonomy and up to the users of the program to verify the program's creator has really done so
 
@@ -87,7 +88,7 @@ We'll get to how a program can check whether a transaction has been signed and h
 
 This allows the runtime to parallelise transactions (among even more other things? I'm not sure here myself). If the runtime knows all the accounts that will be written to and read by everyone at all times it can run those transactions in parallel that do not touch the same accounts or touch the same accounts but only read and don't write. If a transaction violates this constraint and reads or writes to an account of which the runtime has not been notified, the transaction will fail.
 
-Now, to finally conclude this section, create a new `entrypoint.rs` file next to `lib.rs` and move the lib code there. Finally, register the entrypoint module inside `lib.rs`.
+Now, to finally conclude this section, create a new `entrypoint.rs` file next to `lib.rs` and move the `lib.rs` code there. Finally, register the entrypoint module inside `lib.rs`.
 
 ``` rust
 // inside lib.rs, only the following line should be in here
@@ -256,10 +257,12 @@ Finally, the program requires the amount of token Y that Alice wants to receive 
 
 `instruction.rs` is responsible for decoding `instruction_data` so that's that we'll do next.
 
-``` rust{2-4,24-45}
+``` rust{2-5,25-46}
 // inside instruction.rs
 use std::convert::TryInto;
-use crate::error::{EscrowError, EscrowError::InvalidInstruction};
+use solana_program::program_error::ProgramError;
+
+use crate::error::EscrowError::InvalidInstruction;
 
  pub enum EscrowInstruction {
 
@@ -281,18 +284,18 @@ use crate::error::{EscrowError, EscrowError::InvalidInstruction};
 
 impl EscrowInstruction {
     /// Unpacks a byte buffer into a [EscrowInstruction](enum.EscrowInstruction.html).
-    pub fn unpack(input: &[u8]) -> Result<Self, EscrowError> {
+    pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         let (tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
 
         Ok(match tag {
             0 => Self::InitEscrow {
-                amount: unpack_amount(rest)?,
+                amount: Self::unpack_amount(rest)?,
             },
-            _ => return Err(InvalidInstruction),
+            _ => return Err(InvalidInstruction.into()),
         })
     }
 
-    fn unpack_amount(input: &[u8]) -> Result<u64, EscrowError> {
+    fn unpack_amount(input: &[u8]) -> Result<u64, ProgramError> {
         let amount = input
             .get(..8)
             .and_then(|slice| slice.try_into().ok())
@@ -311,11 +314,11 @@ This won't compile because we are using an undefined error. Let's add that error
 
 Create a new file `error.rs` next to the others and register it inside `lib.rs`. Then, add the following dependency to your `Cargo.toml`
 
-``` toml
+``` toml {4}
 ...
 [dependencies]
+solana-program = "1.5.0"
 thiserror = "1.0.21"
-...
 ```
 
 and the following code to `error.rs`.
@@ -324,7 +327,7 @@ and the following code to `error.rs`.
 // inside error.rs
 use thiserror::Error;
 
-#[derive(Error)]
+#[derive(Error, Debug, Copy, Clone)]
 pub enum EscrowError {
     /// Invalid instruction
     #[error("Invalid Instruction")]
@@ -333,6 +336,27 @@ pub enum EscrowError {
 ```
 
 What we are doing here is [defining an error type](https://doc.rust-lang.org/rust-by-example/error/multiple_error_types/define_error_type.html). Instead of having to write the `fmt::Display` implementation ourselves as is done in the example the link points to, we use the handy [thiserror](https://docs.rs/thiserror/1.0.22/thiserror/) library that does it for us using the `#[error("..")]` notation. This will become especially useful when we add more errors later on.
+
+Looking back into `instruction.rs`, we can see that we are not quite done. The compiler is telling us it has no way of turning an EscrowError into a ProgramError. So let's implement a way.
+
+``` rust{3,12-16}
+use thiserror::Error;
+
+use solana_program::program_error::ProgramError;
+
+#[derive(Error, Debug, Copy, Clone)]
+pub enum EscrowError {
+    /// Invalid instruction
+    #[error("Invalid Instruction")]
+    InvalidInstruction,
+}
+
+impl From<EscrowError> for ProgramError {
+    fn from(e: EscrowError) -> Self {
+        ProgramError::Custom(e as u32)
+    }
+}
+```
 
 ### processor.rs Part 1, starting to process the InitEscrow instruction
 
@@ -362,7 +386,6 @@ impl Processor {
                 return Self::process_init_escrow(accounts, amount, program_id);
             }
         };
-        Ok(())
     }
 }
 ```
@@ -380,7 +403,7 @@ use solana_program::{
     msg,
     pubkey::Pubkey,
 };
-
+...
 impl Processor {
     ...
     fn process_init_escrow(
@@ -394,17 +417,19 @@ impl Processor {
         if !initializer.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
+
+        Ok(())
     }
 }
-...
 ```
 
-`process_init_escrow` is next. To be clear, `...` just means there is other stuff around the code you're seeing, don't copy those!
+`process_init_escrow` is next. To be clear, `...` just means there is other stuff around the code you're seeing, don't copy those! Copy and replace your current `use solana_program...` with the one here or add the invididual missing pieces.
+
 Inside `process_init_escrow` we first create an iterator of accounts. It needs to be mutable so we can take elements out of it. The first account we expect - as defined in `instruction.rs` - is the escrow's initializer, i.e. Alice's main account. She needs to be a signer which we check right away. It's just a boolean field on `AccountInfo`.
 
 ``` rust {14-19}
 ...
-pub fn process_init_escrow(
+fn process_init_escrow(
     accounts: &[AccountInfo],
     amount: u64,
     program_id: &Pubkey,
@@ -419,9 +444,11 @@ pub fn process_init_escrow(
     let temp_token_account = next_account_info(account_info_iter)?;
 
     let received_token_account = next_account_info(account_info_iter)?;
-    if *received_token_account.owner != Pubkey::from_str(TOKEN_PROGRAM_ID).unwrap() {
+    if *received_token_account.owner != spl_token::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
+
+    Ok(())
 }
 ...
 ```
@@ -430,12 +457,34 @@ Next, add the highlighted lines. The temporary token account needs to be writabl
 
 We don't make any changes to the `received_token_account` though. We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because the token program will attempt to send the Y tokens to Alice but not be the owner of the `received_token_account`. That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
 
-``` rust {9-14}
+Finally, I'm sure you have noticed that we are using a crate here which we have not registered inside `Cargo.toml` yet. Let's do that now.
+``` toml{4}
+[dependencies]
+solana-program = "1.5.0"
+thiserror = "1.0.21"
+spl-token = {version = "3.0.1", features = ["no-entrypoint"]}
+```
+
+We are using a slighly different way to import a dependency here than we did we the other dependencies. That's because we are importing another Solana program that has its own entrypoint. But our program should only have one entrypoint, the one we defined earlier. Luckily, the token program provides a switch to turn its entrypoint off with the help of a [cargo feature](https://doc.rust-lang.org/cargo/reference/features.html). We should define this feature in our program as well so others can import our program! I'll leave this to you with some hints: Check out the token program's `Cargo.toml` and its `lib.rs`. If you cannot or don't want to figure it out on your own, you can take a look into the escrow program I created.
+
+Now back to `processor.rs`. Copy and replace the `solana_program` use statement and add more code to `process_init_escrow`:
+
+
+``` rust {18-23}
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    entrypoint::ProgramResult,
+    program_error::ProgramError,
+    msg,
+    pubkey::Pubkey,
+    program_pack::{Pack, IsInitialized}
+};
+//inside process_init_escrow
 ...
 let temp_token_account = next_account_info(account_info_iter)?;
 
 let received_token_account = next_account_info(account_info_iter)?;
-if *received_token_account.owner != Pubkey::from_str(TOKEN_PROGRAM_ID).unwrap() {
+if *received_token_account.owner != spl_token::id() {
     return Err(ProgramError::IncorrectProgramId);
 }
 
@@ -445,10 +494,12 @@ let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.data.borrow())?;
 if escrow_info.is_initialized() {
     return Err(ProgramError::AccountAlreadyInitialized);
 }
+
+Ok(())
 ...
 ```
 
-Add the highlighted lines again. Something unfamiliar is happening here. For the first time, we are accessing the `data` field. Because `data` is also just an array of `u8`, we need to deserialize it with `Escrow::unpack_unchecked`. This is a function inside `state.rs` which we'll create in the next section.
+Something unfamiliar is happening here. For the first time, we are accessing the `data` field. Because `data` is also just an array of `u8`, we need to deserialize it with `Escrow::unpack_unchecked`. This is a function inside `state.rs` which we'll create in the next section.
 
 ### state.rs
 
@@ -492,26 +543,26 @@ impl IsInitialized for Escrow {
 ```
 
 `Sealed` is just Solana's version of Rust's `Sized` trait although there does not seem to be any difference between the two.
-Now, `Pack`, which relies on `Sealed` and in our case also on `IsInitialized` being implemented. It's a big but simple blog of code. I'll split it into 2 parts. Let's start with the first one:
+Now, `Pack`, which relies on `Sealed` and in our case also on `IsInitialized` being implemented. It's a big but simple blog of code. I'll split it into 2 parts. Let's start with the first one (you can copy and replace the `use` imports again):
 
 ``` rust
 use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
+    program_error::ProgramError,
     pubkey::Pubkey,
 };
 
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use crate::error::EscrowError;
 ...
 impl Pack for Escrow {
     const LEN: usize = 105;
-    fn unpack_from_slice(src: &[u8]) -> Result<Self, EscrowError> {
+    fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
         let src = array_ref![src, 0, Escrow::LEN];
         let (
             is_initialized,
             initializer_pubkey,
-            sending_token_account_pubkey,
-            receiving_token_account_pubkey,
+            initializer_temp_token_account_pubkey,
+            initializer_receiving_token_account_pubkey,
             expected_amount,
         ) = array_refs![src, 1, 32, 32, 32, 8];
         let is_initialized = match is_initialized {
@@ -523,8 +574,8 @@ impl Pack for Escrow {
         Ok(Escrow {
             is_initialized,
             initializer_pubkey: Pubkey::new_from_array(*initializer_pubkey),
-            sending_token_account_pubkey: Pubkey::new_from_array(*sending_token_account_pubkey),
-            receiving_token_account_pubkey: Pubkey::new_from_array(*receiving_token_account_pubkey),
+            initializer_temp_token_account_pubkey: Pubkey::new_from_array(*initializer_temp_token_account_pubkey),
+            initializer_receiving_token_account_pubkey: Pubkey::new_from_array(*initializer_receiving_token_account_pubkey),
             expected_amount: u64::from_le_bytes(*expected_amount),
         })
     }
@@ -533,7 +584,7 @@ impl Pack for Escrow {
 
 The first requirement for something implementing `Pack` is defining `LEN` which is the size of our type. Looking at our Escrow struct, we can see calculate the length of the struct by adding the sizes of the individual data types: `1 (bool) + 3 * 32 (Pubkey) + 1 * 8 (u64) = 105`.  It's okay to use an entire `u8` for the bool since it'll make our coding easier and the cost of those extra wasted bits is infinitesimal.
 
-Next up, we implement `unpack_from_slice` which will turn an array of `u8` into an instance of the Escrow struct we defined above. Nothing too interesting happens here. Notable here is the use of [arrayref](https://docs.rs/arrayref/0.3.6/arrayref/), a library for getting references to sections of a slice. The docs should be enough to understand the (just 4) different functions from the library. Make sure to add the library to `Cargo.toml`.
+After defining the escrow's length, we implement `unpack_from_slice` which turns an array of `u8` into an instance of the Escrow struct we defined above. Nothing too interesting happens here. Notable here is the use of [arrayref](https://docs.rs/arrayref/0.3.6/arrayref/), a library for getting references to sections of a slice. The docs should be enough to understand the (just 4) different functions from the library. Make sure to add the library to `Cargo.toml`.
 
 ``` toml
 ...
@@ -554,36 +605,47 @@ impl Pack for Escrow {
         let (
             is_initialized_dst,
             initializer_pubkey_dst,
-            sending_token_account_pubkey_dst,
-            receiving_token_account_pubkey_dst,
+            initializer_temp_token_account_pubkey_dst,
+            initializer_receiving_token_account_pubkey_dst,
             expected_amount_dst,
         ) = mut_array_refs![dst, 1, 32, 32, 32, 8];
 
         let Escrow {
             is_initialized,
             initializer_pubkey,
-            sending_token_account_pubkey,
-            receiving_token_account_pubkey,
+            initializer_temp_token_account_pubkey,
+            initializer_receiving_token_account_pubkey,
             expected_amount,
         } = self;
 
         is_initialized_dst[0] = *is_initialized as u8;
         initializer_pubkey_dst.copy_from_slice(initializer_pubkey.as_ref());
-        sending_token_account_pubkey_dst.copy_from_slice(sending_token_account_pubkey.as_ref());
-        receiving_token_account_pubkey_dst.copy_from_slice(receiving_token_account_pubkey.as_ref());
+        initializer_temp_token_account_pubkey_dst.copy_from_slice(initializer_temp_token_account_pubkey.as_ref());
+        initializer_receiving_token_account_pubkey_dst.copy_from_slice(initializer_receiving_token_account_pubkey.as_ref());
         *expected_amount_dst = expected_amount.to_le_bytes();
     }
 }
 ```
 
 This is pretty much the same as the `unpack_from_slice` function, just vice versa! This time, we also pass in `&self`. We didn't have to do this inside `unpack_from_slice` because _there was no self_ yet. `unpack_from_slice` was a static constructor function returning a new instance of an escrow struct. When we `pack_into_slice`, we already have an instance of an Escrow struct and now serialize it into the given `dst` slice. And that's it for `state.rs`! But wait, if we look back into `processor.rs`, we call `unpack_unchecked`, a function we didn't define, so where is it coming from? The answer is that traits can have default functions that may be overridden but don't have to be.
-[Look here](https://docs.rs/solana-program/1.5.0/src/solana_program/program_pack.rs.html#29-39) to find out about `Pack`'s default functions. With `state.rs` done, let's go back to the `process_init_escrow` function.
+[Look here](https://docs.rs/solana-program/1.5.0/src/solana_program/program_pack.rs.html#29-39) to find out about `Pack`'s default functions. 
+
+With `state.rs` done, let's go back to the `processor.rs` and adjust one of our `use` statements.
+ 
+From
+``` rust
+use crate::instruction::EscrowInstruction;
+``` 
+to 
+``` rust
+use crate::{instruction::EscrowInstruction, state::Escrow};
+```
 
 ### Processor Part 2, PDAs Part 2, CPIs Part 1
 
 Let's finish the `process_init_escrow` function by first adding the state serialization. We've already created the escrow struct instance and checked that it is indeed uninitialized. Time to populate the struct's fields!
 
-``` rust {7-13}
+``` rust {7-14}
 // inside process_init_escrow
 ...
 let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.data.borrow())?;
@@ -600,19 +662,51 @@ escrow_info.expected_amount = amount;
 Escrow::pack(escrow_info, &mut escrow_account.data.borrow_mut())?;
 ```
 
-Pretty straightforward. `pack` is another default function which internally calls our `pack_into_slice` function. There's one thing left to do inside `process_init_escrow`: transferring (user space) ownership of the temporary token account to the PDA. This is a good time to explain what PDAs actually are and why we might need the `program_id` inside a process function. Copy and look at the following code:
+Pretty straightforward. `pack` is another default function which internally calls our `pack_into_slice` function. 
 
-``` rust
+#### PDAs Part 2
+
+There's one thing left to do inside `process_init_escrow`: transferring (user space) ownership of the temporary token account to the PDA. This is a good time to explain what PDAs actually are and why we might need the `program_id` inside a process function. Copy and look at the higlighted line:
+
+``` rust {5}
 // inside process_init_escrow
 ...
+escrow_info.expected_amount = amount;
+Escrow::pack(escrow_info, &mut escrow_account.data.borrow_mut())?;
 let (pda, _nonce) = Pubkey::find_program_address(&[b"escrow"], program_id);
+```
 
+
+We create a PDA by passing in an array of seeds and the `program_id` into the `find_program_address` function. We get back a new `pda` and `nonce` with a 1/(2^255) chance the function fails ([2^255 is a BIG number](https://youtu.be/S9JGmA5_unY)). In our case the seeds can be static. There are cases such as in the [Associated Token Account program](https://github.com/solana-labs/solana-program-library/blob/596700b6b100902cde33db0f65ca123a6333fa58/associated-token-account/program/src/lib.rs#L24) where they aren't (cause different users should own different associated token accounts). We just need `1` PDA that can own `N` temporary token accounts for different escrows occuring at any and possibly the same point in time.
+
+Ok, but what _is_ a PDA? Normally, Solana key pairs use the [`ed25519`](http://ed25519.cr.yp.to/) standard. This means normal public keys lie on the `ed25519` elliptic curve. PDAs are public keys that are derived from the `program_id` and the seeds as well as _having been pushed off the curve by the nonce_. Hence,
+
+> Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
+
+They are just random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/1.5.0/src/solana_program/pubkey.rs.html#114)). We don't use the nonce here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
+
+#### CPIs Part 1
+
+For now, let's look at how we can transfer the (user space) ownership of the temporary token account to the PDA. To do this, we will call the token program from our escrow program. This is called a [_Cross-Program Invocation_](https://docs.solana.com/developing/programming-model/calling-between-programs#cross-program-invocations) and executed using either the `invoke` or the `invoke_signed` function. Here we use `invoke`. In Bob's transaction we will use `invoke_signed`. The difference will become clear then. `invoke` takes two arguments: an instruction and an array of accounts.
+
+``` rust
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    entrypoint::ProgramResult,
+    msg,
+    program_error::ProgramError,
+    program_pack::{IsInitialized, Pack},
+    pubkey::Pubkey,
+    program::invoke
+};
+/// inside process_init_escrow
+...
 let token_program = next_account_info(account_info_iter)?;
-let owner_change_ix = set_token_authority(
+let owner_change_ix = spl_token::instruction::set_authority(
     token_program.key,
     temp_token_account.key,
     Some(&pda),
-    TokenAccountAuthority::AccountOwner,
+    spl_token::instruction::AuthorityType::AccountOwner,
     initializer.key,
     &[&initializer.key],
 )?;
@@ -631,32 +725,20 @@ Ok(())
 // end of process_init_escrow
 ```
 
-#### PDAs Part 2
-
-We create a PDA by passing in an array of seeds and the `program_id` into the `find_program_address` function. We get back a new `pda` and `nonce` with a 1/(2^255) chance the function fails ([2^255 is a BIG number](https://youtu.be/S9JGmA5_unY)). In our case the seeds can be static. There are cases such as in the [Associated Token Account program](https://github.com/solana-labs/solana-program-library/blob/596700b6b100902cde33db0f65ca123a6333fa58/associated-token-account/program/src/lib.rs#L24) where they aren't (cause different users should own different associated token accounts). We just need `1` PDA that can own `N` temporary token accounts for different escrows occuring at any and possibly the same point in time. Ok, but what _is_ a PDA? Normally, Solana key pairs use the `ed25519` standard. This means normal public keys lie on the `ed25519` elliptic curve. PDAs are public keys that are derived from the `program_id` and the seeds as well as having been pushed off the curve by the nonce. Hence,
-
-> Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
-
-They are just random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/1.5.0/src/solana_program/pubkey.rs.html#114)). We don't use the nonce here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
-
-#### CPIs Part 1
-
-For now, let's look at how we can transfer the (user space) ownership of the temporary token account to the PDA. To do this, we will call the token program from our escrow program. This is called a [_Cross-Program Invocation_](https://docs.solana.com/developing/programming-model/calling-between-programs#cross-program-invocations) and executed using either the `invoke` or the `invoke_signed` function. Here we use `invoke`. In Bob's transaction we will use `invoke_signed`. The difference will become clear then. `invoke` takes two arguments: an instruction and an array of accounts.
-
-We start by getting the token_program account. It's a rule that the program being called through a CPI must be included as an account in the 2nd argument of `invoke` (and `invoke_signed`). Next, we create the instruction. This is just the instruction that the token program would expect were we executing a normal call. The token program defines some helper functions inside its `instruction.rs` that we can make use of. Of particular interest to us is the `set_token_authority` function which is a builder function to create such an instruction. We pass in the token program id, then the account whose authority we'd like to change, the account that's the new authority (in our case the PDA), the type of authority change (there are different authority types for token accounts, we care about changing the owner), the current account owner (Alice -> initializer.key), and finally the public keys signing the CPI.
+Copy and replace the `solana_program` use statement. We continue with `process_init_escrow` by getting the token_program account. It's a rule that the program being called through a CPI must be included as an account in the 2nd argument of `invoke` (and `invoke_signed`). Next, we create the instruction. This is just the instruction that the token program would expect were we executing a normal call. The token program defines some helper functions inside its `instruction.rs` that we can make use of. Of particular interest to us is the `set_token_authority` function which is a builder function to create such an instruction. We pass in the token program id, then the account whose authority we'd like to change, the account that's the new authority (in our case the PDA), the type of authority change (there are different authority types for token accounts, we care about changing the owner), the current account owner (Alice -> initializer.key), and finally the public keys signing the CPI.
 
 The concept that is being used here is [_Signature Extension_](https://docs.solana.com/developing/programming-model/calling-between-programs#instructions-that-require-privileges). In short,
 
-> When including a `signed` account in a program call, in all CPIs made by that program inside the current instruction where that account is included the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
+> When including a `signed` account in a program call, in all CPIs including that account made by that program inside the current instruction, the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
 
-In our case this means that because Alice signed the `InitEscrow` transaction, the program can make the CPI and include her pubkey as a signer pubkey. This is necessary because changing a token account's owner should of course require the approval of the current owner.
+In our case this means that because Alice signed the `InitEscrow` transaction, the program can make the token program `set_authority` CPI and include her pubkey as a signer pubkey. This is necessary because changing a token account's owner should of course require the approval of the current owner.
 
 Next to the instruction, we also need to pass in the accounts that are required by the instruction, in addition to the account of the program we are calling. You can look these up by going to the token programs `instruction.rs` and finding the setAuthority Enum whose comments will tell you which accounts are required (in our case, the current Owner's account and the account whose owner is to be changed).
 
 #### theory recap
 
 - Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
-- When including a `signed` account in a program call, in all CPIs made by that program inside the current instruction where that account is included the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
+- When including a `signed` account in a program call, in all CPIs including that account made by that program inside the current instruction, the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
 
 ### Trying out the program, understanding program calls
 
@@ -667,7 +749,7 @@ You can use this UI to try out your program. I explain how it works and what you
 <Escrow/>
 
 #### Deploying your program on devnet
-First, use the `cargo build-bpf` command to compile your program to a file with the `so` file extension. You should also create a personal account using the solana dev tools and airdrop some SOL into it _on devnet_. Then, use the `solana deploy` command to deploy the program to devnet.
+First, use the `cargo build-bpf` command to compile your program to a file with the `so` file extension. You should also create a personal account using the solana dev tools and airdrop some SOL into it _on devnet_. Then, use the `solana deploy` command to deploy the program to devnet. The Path will be printed by `cargo build-bpf`.
 
 ``` shell
 solana deploy --url https://devnet.solana.com PATH_TO_YOUR_PROGRAM
@@ -693,7 +775,7 @@ Go through the same steps for token Y. You don't have to mint tokens to Alice's 
 
 With all the steps completed, all that is left to do is to fill in Alice's expected amount and the amount she wants to put into the escrow. Fill in both numbers (the 2nd needs to be lower than what you minted to Alice's account) and hit `Init Escrow`.
 
-#### Understanding what just happened
+#### Understanding what just happened, reading the frontend code
 
 
 ## Building the escrow program - Bob's Transaction
