@@ -62,11 +62,11 @@ crate-type = ["cdylib", "lib"]
 ```
 
 ### entrypoint.rs, programs, and accounts
-Have a look into `lib.rs`. First, the required crates are brought into scope using [use](https://doc.rust-lang.org/stable/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html). Then we use the `entrypoint!` [macro](https://doc.rust-lang.org/stable/book/ch19-06-macros.html) to declare the `process_instruction` the [entrypoint](https://docs.solana.com/developing/deployed-programs/developing-rust#program-entrypoint) to the program. Entrypoints are the only way to call a program; all calls go through the function declared as the entrypoint.
+Have a look into `lib.rs`. First, the required crates are brought into scope using [use](https://doc.rust-lang.org/stable/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html). Then we use the `entrypoint!` [macro](https://doc.rust-lang.org/stable/book/ch19-06-macros.html) to declare the `process_instruction` function the [entrypoint](https://docs.solana.com/developing/deployed-programs/developing-rust#program-entrypoint) to the program. Entrypoints are the only way to call a program; all calls go through the function declared as the entrypoint.
 
-> Keep in mind that different [BPF loaders](https://docs.solana.com/developing/builtins/programs#bpf-loader) may require different entrypoints.
+> When called, a program is passed to its [BPF Loader]((https://docs.solana.com/developing/builtins/programs#bpf-loader)) which processes the call. Different BPF loaders may require different entrypoints.
 
-We can see that the BPF loader we are using requires the entrypoint function to take 3 arguments. `program_id` is simply the program id of the currently executing program. Why you'd want access to it inside the program will become apparent later. `intruction_data` is data passed to he program by the caller, it could be anything. Finally, to understand what `accounts` are, we have to dive deeper into the [solana programming model](https://docs.solana.com/developing/programming-model/overview). The reason we need accounts is because
+The reason for the existence of multiple BPF Loaders is that it itself is a program. If updates are made to the program, a new program version has to be deployed. We can see that the BPF loader we are using requires the entrypoint function to take 3 arguments. `program_id` is simply the program id of the currently executing program. Why you'd want access to it inside the program will become apparent later. `intruction_data` is data passed to he program by the caller, it could be anything. Finally, to understand what `accounts` are, we have to dive deeper into the [solana programming model](https://docs.solana.com/developing/programming-model/overview). The reason we need accounts is because
 
 > Solana programs are stateless
 
@@ -79,7 +79,7 @@ Now you might be thinking "does that mean that my own SOL account is actually no
 
 ![](../images/2020-12-24/2020-12-24-always-has-been.jpeg)
 
-[If you look at the system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs#L179) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited. 
+[If you look at the system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs#L179) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited. (As a matter of fact, even programs are owned by programs. Remember, they are stored in accounts and these `executable` accounts are owned by the BPF Loader. The only programs not owned by the BPF loader are - of course - the BPF loader itself and the System Program. They are owned by the NativeLoader and have special privileges such as allocating memory or marking accounts as executable) 
 
 > In theory, programs have full autonomy over the accounts they own. It is up to the program's creator to limit this autonomy and up to the users of the program to verify the program's creator has really done so
 
@@ -98,7 +98,7 @@ pub mod entrypoint;
 
 #### theory recap
 
-- each program has an entrypoint whose structure depends on which BPF Loader is used
+- each program is processed by its BPF Loader and has an entrypoint whose structure depends on which BPF Loader is used
 - accounts are used to store state
 - accounts are owned by programs
 - only the account owner may debit an account and adjust its data
@@ -805,7 +805,7 @@ With all the steps completed, all that is left to do is to fill in Alice's expec
 
 #### Understanding what just happened, reading the frontend code
 
-<Slideshow :images="['./2020-12-24_no_but_yes.jpg']"/>
+<Slideshow :images="['/images/2020-12-24_no_but_yes.jpg']"/>
 
 #### Adapting the frontend for real life use
 
