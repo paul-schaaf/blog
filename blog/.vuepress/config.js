@@ -36,5 +36,6 @@ module.exports = {
           selector: '.vuepress-blog-theme-content img:not(.no-medium-zoom)',
         },
       ],
+      'reading-progress'
     ]
 }
