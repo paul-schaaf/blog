@@ -805,6 +805,10 @@ With all the steps completed, all that is left to do is to fill in Alice's expec
 
 #### Understanding what just happened, reading the frontend code
 
+<Slideshow :images="['./2020-12-24_no_but_yes.jpg']"/>
+
+#### Adapting the frontend for real life use
+
 There are a couple of things that were left out - to keep things simple - but should definitely be added for a real program. First, the maximum token amount is U64_MAX which is higher than javascript's number value. Hence, you need to find a way to handle this, either by limiting the allowed amount of tokens that can be put in or by accepting the token amount as a string and then using a library like `bn.js` to convert the string. Secondly, you should never have your users put in a private key. Use an external wallet like `solong` or the `sol-wallet-adapter` library.
 
 ## Building the escrow program - Bob's Transaction
