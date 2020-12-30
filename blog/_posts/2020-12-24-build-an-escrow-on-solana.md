@@ -1,5 +1,6 @@
 ---
-title: Learn solana basics by building an escrow
+title: "Programming on Solana - An Introduction"
+summary: Learn the fundamentals of Programming on Solana by building an escrow
 date: 2020-12-24
 tags:
     - solana
@@ -760,11 +761,12 @@ fn process_instruction(
 
 ### Trying out the program, understanding program calls
 
-Because we've built a part of the program that is complete in itself, we can now try it out! In doing so, we can acquire more knowledge about Solana.
+Because we've built a part of the program that is complete in itself, we can now try it out! In doing so, we can acquire more knowledge about Solana, e.g. where do accounts come from?
 
 You can use this UI to try out your program. I explain how it works and what you need to do to make it work below. Feel free to build your own!
 
 <Escrow/>
+
 
 #### Deploying your program on devnet
 First, use the `cargo build-bpf` command to compile your program to a file with the `so` file extension. You should also create a personal account using the solana dev tools and airdrop some SOL into it _on devnet_. Then, use the `solana deploy` command to deploy the program to devnet. The Path will be printed by `cargo build-bpf`.
@@ -773,11 +775,19 @@ First, use the `cargo build-bpf` command to compile your program to a file with 
 solana deploy --url https://devnet.solana.com PATH_TO_YOUR_PROGRAM
 ```
 
-The `deploy` command should print the program id which you can now paste into the UI above. 
+The `deploy` command should print the program id which you can now paste into the UI above.
+
+#### Creating a throwaway private key
+
+My UI requires a private key (NEVER DO THIS IN A REAL APP). An easy way to create a private key is to open an _incognito mode_ browser window and then to go to [sollet.io](https://www.sollet.io). Because we are in _incognito mode_, we can create a new wallet even if we had one in sollet already.
+
+After creating the wallet, airdrop yourself some SOL to pay for the tx fees. Then, click on `export` to export your Base58 encoded private key and paste it above.
+
+Use your throwaway wallet for the next steps as well. It will represent Alice.
 
 #### Creating tokens for testing on devnet
 
-You'll also need a token to put into the escrow so head over to the [SPL Token UI](https://www.spl-token-ui.com) (and to [sollet.io](https://www.sollet.io) to create yourself an account you can use in the SPL Token UI, if you haven't already). Select `devnet` in the top right and click on `SOL Airdrop` inside the `Airdrops` tab. Click on `Derive public key from external wallet` to fill out the form using `sollet` and request the airdrop.
+You'll also need a token to put into the escrow so head over to the [SPL Token UI](https://www.spl-token-ui.com).
 
 During the next steps, you will create 2 tokens X and Y and 2 token accounts, Alice's X and Alice's Y account. After each step, copy the account address and put it into the appropriate UI field. You could also write them down somewhere else so can reuse them when eventually testing the entire escrow, including Bob's transaction.
 
@@ -795,5 +805,6 @@ With all the steps completed, all that is left to do is to fill in Alice's expec
 
 #### Understanding what just happened, reading the frontend code
 
+There are a couple of things that were left out - to keep things simple - but should definitely be added for a real program. First, the maximum token amount is U64_MAX which is higher than javascript's number value. Hence, you need to find a way to handle this, either by limiting the allowed amount of tokens that can be put in or by accepting the token amount as a string and then using a library like `bn.js` to convert the string. Secondly, you should never have your users put in a private key. Use an external wallet like `solong` or the `sol-wallet-adapter` library.
 
 ## Building the escrow program - Bob's Transaction
