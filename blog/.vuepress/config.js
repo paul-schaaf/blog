@@ -29,6 +29,12 @@ module.exports = {
           defaultTitle: '<div><span class="title">Last updated: </span>{{$page.lastUpdated}}<p class="margin-bottom-zero"><span class="title">Time to read: </span>{{$page.readingTime.minutes}} minutes</p></div>'
         },
       ],
-      'vuepress-plugin-reading-time'
+      'vuepress-plugin-reading-time',
+      [
+        'medium-zoom',
+        {
+          selector: '.vuepress-blog-theme-content img:not(.no-medium-zoom)',
+        },
+      ],
     ]
 }
