@@ -13,7 +13,7 @@ tags:
 
 ## Intro
 This guide is meant to serve as an intro to coding on [Solana](https://www.solana.com),
-using an escrow program as an example. We'll go through the code together, building the escrow program step by step.
+using an escrow program as an example. We'll go through the code together, building the escrow program step by step. I've also created a UI you will be able to use to try out your program.
 
 > On Solana, smart contracts are called _programs_
 
@@ -918,11 +918,61 @@ There are a couple of things that were left out - to keep things simple - but sh
 ::: theory-recap
 <li>There can be several <i>instructions</i> (ix) inside one <i>transaction</i> (tx) in Solana. These instructions are executed out <i>synchronously</i> and the tx as a whole is executed <i>atomically</i></li>
 <li>The system program is responsible for allocating account space and assigning (internal - not user space) account ownership</li>
-<li>instructions may depend on previous instructions inside the same transaction</li>
+<li>Instructions may depend on previous instructions inside the same transaction</li>
 <li>Rent is deducted from accounts according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming</li>
 <li>Commitment settings give downstream developers ways to query the network which differ in finality likelihood</li>
 :::
 
 ## Building the escrow program - Bob's Transaction
 
+After Alice has created the escrow, she can send the escrow state account address to Bob. If he sends the expected amount of Y tokens to the escrow, the escrow will send him Alice's X tokens and Alice his Y tokens. I'll now show you how to make the escrow program ready for Bob's transaction. During this second part of the guide, you will also get to know some more Solana concepts! This part will be considerably shorter because we can reuse a lot of the code we wrote already!
+
+### instruction.rs Part 3, understanding what Bob's transaction should do
+
+To understand what Bob's transaction should do, let's have a look once again at the state of things after Alice's transaction is complete.
+
+![](../images/2020-12-24/escrow-alice-end.jpg)
+
+We can see that there is an escrow account which holds all the info necessary for the trade between Alice and Bob and there also is a token account which holds Alice's X tokens and is owned by a PDA of the escrow program.What we (and Bob) would like the tx to do is move the X tokens from the PDA-owned X token account to his X token account. The escrow program should also subtract tokens from Bob's Y token account and add them to the Y token account Alice had the escrow program write into the escrow state account (the `initializer_receiving_token_account_pubkey` property inside the Escrow struct inside `state.rs`). Lastly, the two accounts that have been created for the trade (the escrow state account and the temporary X token account) should be cleaned up since there is no need for them anymore.
+
+Equipped with this knowledge, we can add the endpoint for what I've decided to call the `Exchange` instruction inside `instruction.rs`.
+
+``` rust
+/// Accepts a trade
+///
+///
+/// Accounts expected:
+///
+/// 0. `[signer]` The account of the person taking the trade
+/// 1. `[writable]` The taker's token account for the token they will receive should the trade go through
+/// 2. `[writable]` The PDA's temp token account to get tokens from and eventually close
+/// 3. `[writable]` The creator's main account to send their rent fees to
+/// 4. `[writable]` The creator's token account that will receive tokens
+/// 5. `[writable]` The escrow account holding the escrow info
+/// 6. `[]` The token program
+/// 7. `[]` The PDA account
+Exchange {
+    /// the amount the taker expects to be paid in the other token, as a u64 because that's the max possible supply of a token
+    amount: u64,
+}
+```
+The tx requires a total of 8 accounts. I will skip explaining them because you will see how they are used inside `processor.rs` and by now you should feel comfortable figuring this out by yourself!
+
+The tx also expects an amount whose addition to the program actually isn't a necessity. The program will check whether the temp X token account holds the amount of X tokens Bob expects. Bob could check this himself by looking at the chain (and not sending his tx if he doesn't like what he's seeing) but this way it's more convenient although it does come at the risk of a failed transaction and wasted tx fees if the amount he wants does not equal the amount in the temp X token account. But with transaction fees costing a fraction of a cent this is acceptable.
+
+And that's it for `instruction.rs`!
+
+## Q & A
+
+This is a collection of questions (and their answers) that have been asked by readers. Feel free to contact me and ask away!
+
+### Is there really a need for a temporary account for Alice's X tokens?
+
+**Q:** Is there really a need for a temporary account for Alice's X tokens? Couldn't we just save the amount of X tokens Alice wants to trade inside the escrow state as well and then inide Bob's transaction have the escrow program make a CPI to the token program to deduct that amount from her account?
+
+**A**: That wouldn't work because the `from` address of a token transfer needs to sign the transaction. Bob could ask Alice to sign his transaction but that would require more communication between Alice and Bob and thereby result in worse user experience. What you could use is a token account's (user space) `delegate` property but a token account can only have 1 delegate which means Alice could only have one ongoing escrow at a time.
+
+## Potential program improvements
+
 ## Theory recap
+
