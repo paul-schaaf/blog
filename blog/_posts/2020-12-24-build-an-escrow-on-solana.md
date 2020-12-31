@@ -26,6 +26,8 @@ At the end of each section, important theory will be summarized like this:
 - On Solana, smart contracts are called _programs_
 :::
 
+At the end of the post, there is a big recap which is simply all previous recaps combined in one place.
+
 I do not claim to explain _all_ topics but hope this will be a solid starting point from which the reader can explore Solana further.
 
 
@@ -82,11 +84,11 @@ Each account also has an `owner` and only the owner may debit the account and ad
 
 > Accounts can only be owned by programs
 
-Now you might be thinking "does that mean that my own SOL account is actually not owned by myself?". And you'd be right! But fear not, your funds are safu. The way it works is that even basic SOL transactions are handled by a program on Solana: the `system program`.
+Now you might be thinking "does that mean that my own SOL account is actually not owned by myself?". And you'd be right! But fear not, your funds are safu. The way it works is that even basic SOL transactions are handled by a program on Solana: the `system program`. (As a matter of fact, even programs are owned by programs. Remember, they are stored in accounts and these `executable` accounts are owned by the BPF Loader. The only programs not owned by the BPF loader are - of course - the BPF loader itself and the System Program. They are owned by the NativeLoader and have special privileges such as allocating memory or marking accounts as executable)
 
 ![](../images/2020-12-24/2020-12-24-always-has-been.jpeg)
 
-[If you look at the system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs#L179) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited. (As a matter of fact, even programs are owned by programs. Remember, they are stored in accounts and these `executable` accounts are owned by the BPF Loader. The only programs not owned by the BPF loader are - of course - the BPF loader itself and the System Program. They are owned by the NativeLoader and have special privileges such as allocating memory or marking accounts as executable) 
+[If you look at the system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs#L179) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited.
 
 > In theory, programs have full autonomy over the accounts they own. It is up to the program's creator to limit this autonomy and up to the users of the program to verify the program's creator has really done so
 
@@ -827,7 +829,9 @@ With all the steps completed, all that is left to do is to fill in Alice's expec
     ]"/>
 </div>
 
-I've created a little slideshow to show the life of the transaction that Alice sends off. As you can see in the top right corner,
+I've created a little slideshow to show the life of the transaction that Alice sends off. I've left out the internal and user space relationship arrows not to make the images too convoluted.
+
+As you can see in the top right corner,
 
 > there can be several _instructions_ (ix) inside one _transaction_ (tx) in Solana. These instructions are executed out _synchronously_ and the tx as a whole is executed _atomically_
 
@@ -907,6 +911,10 @@ What we end up with after Alice's transaction is the last slide. There's a new e
 
 An important note here is that while it's not important that all the instructions are in the same transaction, **it is important that at least ix 1,2 and ix 4,5 are in the same transaction**. This is because after an account has been created by the system program, it's kind of just floating on the blockchain, still uninitialized, with no user space owner. If, for example, you put ix 1 and 2 in different transactions, someone could try to send a tx between those two and initialize their own token account, using the then still ownerless account created by ix 1. This cannot happen if you put ix 1 and 2 in the same transaction since a tx is executed atomically.
 
+#### Adapting the frontend for real life use
+
+There are a couple of things that were left out - to keep things simple - but should definitely be added for a real program. First, the maximum token amount is U64_MAX which is higher than javascript's number value. Hence, you need to find a way to handle this, either by limiting the allowed amount of tokens that can be put in or by accepting the token amount as a string and then using a library like `bn.js` to convert the string. Secondly, you should never have your users put in a private key. Use an external wallet like `solong` or the `sol-wallet-adapter` library. You'd create the transaction, add the instructions, and then ask whatever trusted service you're using to sign the transaction and send it back to you. You can then add the other two keypair accounts and send off the tx to the network.
+
 ::: theory-recap
 <li>There can be several <i>instructions</i> (ix) inside one <i>transaction</i> (tx) in Solana. These instructions are executed out <i>synchronously</i> and the tx as a whole is executed <i>atomically</i></li>
 <li>The system program is responsible for allocating account space and assigning (internal - not user space) account ownership</li>
@@ -915,8 +923,6 @@ An important note here is that while it's not important that all the instruction
 <li>Commitment settings give downstream developers ways to query the network which differ in finality likelihood</li>
 :::
 
-#### Adapting the frontend for real life use
-
-There are a couple of things that were left out - to keep things simple - but should definitely be added for a real program. First, the maximum token amount is U64_MAX which is higher than javascript's number value. Hence, you need to find a way to handle this, either by limiting the allowed amount of tokens that can be put in or by accepting the token amount as a string and then using a library like `bn.js` to convert the string. Secondly, you should never have your users put in a private key. Use an external wallet like `solong` or the `sol-wallet-adapter` library. You'd create the transaction, add the instructions, and then ask whatever trusted service you're using to sign the transaction and send it back to you. You can then add the other two keypair accounts and send off the tx to the network.
-
 ## Building the escrow program - Bob's Transaction
+
+## Theory recap
