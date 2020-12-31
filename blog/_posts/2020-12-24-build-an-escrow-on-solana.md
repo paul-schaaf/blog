@@ -803,7 +803,7 @@ Go through the same steps for token Y. You don't have to mint tokens to Alice's 
 
 With all the steps completed, all that is left to do is to fill in Alice's expected amount and the amount she wants to put into the escrow. Fill in both numbers (the 2nd needs to be lower than what you minted to Alice's account) and hit `Init Escrow`.
 
-#### Understanding what just happened, reading the frontend code
+#### Understanding what just happened, Rent, and Commitment
 
 <div style="margin-top: 1.5rem">
     <Slideshow :images="[
@@ -819,8 +819,72 @@ With all the steps completed, all that is left to do is to fill in Alice's expec
     ]"/>
 </div>
 
+I've created a little slideshow to show the life of the transaction that Alice sends off. As you can see in the top right corner,
+
+> there can be several _instructions_ (ix) inside one _transaction_ (tx) in Solana. These instructions are executed out _synchronously_ and the tx as a whole is executed _atomically_.
+
+This means that if a single instruction fails, the entire transaction fails. Right in ix1, we can see how accounts come to life.
+
+> The system program is responsible for allocating account space and assigning (internal - not user space) account ownership.
+
+I'll now walk you through the important parts of the frontend code which uses the Solana js/ts libraries. Feel free to look at [the code](https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts) yourself.
+
+``` ts
+const tempTokenAccount = new Account();
+const createTempTokenAccountIx = SystemProgram.createAccount({
+    programId: TOKEN_PROGRAM_ID,
+    space: AccountLayout.span,
+    lamports: await connection.getMinimumBalanceForRentExemption(AccountLayout.span, 'singleGossip'),
+    fromPubkey: feePayerAcc.publicKey,
+    newAccountPubkey: tempTokenAccount.publicKey
+});
+```
+
+The first instruction that is created is to create the new X token account that will be transferred to the PDA eventually. Note that it's just built here,
+nothing is sent yet. The function requires the user to specify which program the new account should belong to (`programId`), how much space it should have (`space`), what the initial balance should be (`lamports`), where to transfer that balance from (`fromPubkey`) and the address of the new account (`newAccountPubkey`). It's pretty straightforward except for line 5 where we meet a new Solana term: [Rent](https://docs.solana.com/implemented-proposals/rent).
+
+> Rent is deducted from accounts according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshhold that depends on the space it's consuming.
+
+`connection.getMinimumBalanceForRentExemption(AccountLayout.span, 'singleGossip')` finds exactly this threshhold for the size of a token account (`=AccountLayout.span`).
+
+What about the `'singleGossip'` argument? `singleGossip` is one of the available [_Commitments_](https://solana-labs.github.io/solana-web3.js/typedef/index.html#static-typedef-Commitment) and tells us how to query the network. Which commitment level to pick depends on your use case. If you're moving millions and want to be as sure as possible that your tx cannot be rolled back, choose `max`. `singleGossip` is still pretty safe because of [optimistic confirmation and slashing](https://docs.solana.com/proposals/optimistic-confirmation-and-slashing).
+
+```ts
+const initTempAccountIx = Token.createInitAccountInstruction(TOKEN_PROGRAM_ID, XTokenMintAccountPubkey, tempTokenAccount.publicKey, feePayerAcc.publicKey);
+const transferXTokensToTempAccIx = Token
+    .createTransferInstruction(TOKEN_PROGRAM_ID, initializerXTokenAccountPubkey, tempTokenAccount.publicKey, feePayerAcc.publicKey, [], amountXTokensToSendToEscrow);
+```
+
+After building the ix for creating the new account, we call two functions provided by the [spl-token js library](https://www.npmjs.com/package/@solana/spl-token) to create the next two instructions. Nothing new here. Then, instruction 4 is creating another account, this time owned by the escrow program but still very similar to the first ix.
+
+```ts
+const initEscrowIx = new TransactionInstruction({
+    programId: escrowProgramId,
+    keys: [
+        { pubkey: feePayerAcc.publicKey, isSigner: true, isWritable: false },
+        { pubkey: tempTokenAccount.publicKey, isSigner: false, isWritable: true },
+        { pubkey: new PublicKey(initializerReceivingTokenAccountPubkeyString), isSigner: false, isWritable: false },
+        { pubkey: escrowAccount.publicKey, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
+    ],
+    data: Buffer.from(Uint8Array.of(0, ...new BN(expectedAmount).toArray("le", 8)))
+})
+```
+
+The 5th and final ix - where we initiate the escrow - is more interesting since here we get almost no help from the Solana libraries. We manually create the instruction by calling its constructor (`new TransactionInstruction...`). The required format should feel familiar! It's exactly what our program entrypoint expects. We pass in the programId of our escrow program and then the keys. Here, we specify whether a given account will sign the tx - if it then doesn't the tx will fail - and whether an account is read-only - if it's then written to the tx will fail. Finally, we specify what will arrive at the entrypoint as `instruction_data`. We start with a `0` since the first byte is what we used in `instruction.rs` as a `tag` to determine how to decode the instruction. `0` means `InitEscrow`. The next bytes will be the `expected_amount`. We use the `bn.js` library to write our expected amount as an 8-byte array of little-endian numbers. 8 bytes because inside `instruction.rs` we decode a `u64` and little-endian because we decode it the slice with `u64::from_le_bytes`. We use a `u64` because that's the [max supply of a token](https://github.com/solana-labs/solana-program-library/blob/123a3dc1e43dbc6c90c503b2c27a0d9b264e9ede/token/program/src/state.rs#L22).
+
+```ts
+const tx = new Transaction()
+        .add(createTempTokenAccountIx, initTempAccountIx, transferXTokensToTempAccIx, createEscrowAccountIx, initEscrowIx);
+await connection.sendTransaction(tx, [feePayerAcc, tempTokenAccount, escrowAccount]);
+```
+
+Finally, we create a new Transaction and add all the instructions. Then, we send off the tx with its signers. In the js library world, an `Account` has a double meaning and is also used as the object to hold a keypair. That means the signers we pass in include the private keys and can actually sign. Obviously, we have to add Alice's account as a signer. We also have to add the other two accounts because it turns out when the system program creates a new account, the tx needs to be signed by that account.
+
+An important note here is that while it's not important that all the instructions are in the same transaction, **it is very important that at least ix 1,2 and ix 4,5 are in the same transaction**. This is because after an account has been created by the system program, it's kind of just floating on the blockchain, still uninitialized, with no user space owner. If, for example, you put ix 1 and 2 in different transactions, someone could try to send a tx between those two and initialize their own token account, using the then still ownerless account created by ix 1. This cannot happen if you put ix 1 and 2 in the same transaction since a tx is executed atomically.
+
 #### Adapting the frontend for real life use
 
-There are a couple of things that were left out - to keep things simple - but should definitely be added for a real program. First, the maximum token amount is U64_MAX which is higher than javascript's number value. Hence, you need to find a way to handle this, either by limiting the allowed amount of tokens that can be put in or by accepting the token amount as a string and then using a library like `bn.js` to convert the string. Secondly, you should never have your users put in a private key. Use an external wallet like `solong` or the `sol-wallet-adapter` library.
+There are a couple of things that were left out - to keep things simple - but should definitely be added for a real program. First, the maximum token amount is U64_MAX which is higher than javascript's number value. Hence, you need to find a way to handle this, either by limiting the allowed amount of tokens that can be put in or by accepting the token amount as a string and then using a library like `bn.js` to convert the string. Secondly, you should never have your users put in a private key. Use an external wallet like `solong` or the `sol-wallet-adapter` library. You'd create the transaction, add the instructions, and then ask whatever trusted service you're using to sign the transaction and send it back to you. You can then add the other two keypair accounts and send off the tx to the network.
 
 ## Building the escrow program - Bob's Transaction
