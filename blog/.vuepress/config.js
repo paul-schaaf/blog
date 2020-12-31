@@ -26,8 +26,16 @@ module.exports = {
         'vuepress-plugin-container',
         {
           type: 'blog-meta',
-          defaultTitle: '<div><span class="title">Last updated: </span>{{$page.lastUpdated}}<p class="margin-bottom-zero"><span class="title">Time to read: </span>{{$page.readingTime.minutes}} minutes</p></div>'
+          defaultTitle: '<div class="gray-section"><span class="title">Last updated: </span>{{$page.lastUpdated}}<p class="margin-bottom-zero"><span class="title">Time to read: </span>{{$page.readingTime.minutes}} minutes</p></div>'
         },
+      ],
+      [
+        'vuepress-plugin-container',
+        {
+          type: 'theory-recap',
+          before: '<div class="gray-section"><div class="title">theory recap 📚</div><ul style="margin-bottom: .5rem">',
+          after: '</ul></div>'
+        }
       ],
       'vuepress-plugin-reading-time',
       [
@@ -35,6 +43,12 @@ module.exports = {
         {
           selector: '.vuepress-blog-theme-content img:not(.no-medium-zoom)',
         },
+      ],
+      [
+        'medium-zoom',
+        {
+          selector: '.zoom-image'
+        }
       ],
       'reading-progress'
     ]

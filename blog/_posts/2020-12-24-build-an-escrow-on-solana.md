@@ -15,12 +15,19 @@ tags:
 This guide is meant to serve as an intro to coding on [Solana](https://www.solana.com),
 using an escrow program as an example. We'll go through the code together, building the escrow program step by step.
 
-> On Solana, smart contracts are called _programs_.
+> On Solana, smart contracts are called _programs_
 
 Most of the info in this blog post can be found somewhere in the docs or in example programs. Having said this, I have not found a guide that both walks through most of the coding theory step by step and applies it in practice. I hope this post achieves this, interweaving the theory and practice of solana programs. It requires no previous knowledge of Solana. While this is not a Rust tutorial, I will link to the [Rust docs](https://doc.rust-lang.org/book) whenever I introduce a new concept.
 I will also link to the relevant Solana docs although you don't have to read them to follow along.
 
+At the end of each section, important theory will be summarized like this:
+
+::: theory-recap
+- On Solana, smart contracts are called _programs_
+:::
+
 I do not claim to explain _all_ topics but hope this will be a solid starting point from which the reader can explore Solana further.
+
 
 ## The Final Product
 
@@ -96,13 +103,13 @@ Now, to finally conclude this section, create a new `entrypoint.rs` file next to
 pub mod entrypoint;
 ```
 
-#### theory recap
-
+::: theory-recap
 - each program is processed by its BPF Loader and has an entrypoint whose structure depends on which BPF Loader is used
 - accounts are used to store state
 - accounts are owned by programs
 - only the account owner may debit an account and adjust its data
 - all accounts to be written to or read must be passed into the entrypoint
+:::
 
 ### instruction.rs Part 1, general code structure, and the beginning of the escrow program flow
 
@@ -163,7 +170,7 @@ of the token account. Clearly, this would not be sustainable if Alice owned many
 It would be much easier for Alice if she just had one private key for all her token accounts and this is exactly how the token program does it!
 It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. This new token owner attribute is something the token program declares in user space. It's encoded inside a token account's `data`, in addition to other properties such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx with the private key of their main account.
 
-> All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information.
+> All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information
 
 We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/FpYU4M8oH9pfUqzpff44gsGso96MUKW1G1tBZ9Kxcb7d?cluster=mainnet-beta).
 
@@ -182,13 +189,14 @@ The only way to own units of a token is to own a token account that holds some t
 
 There is one more problem here. What exactly does Alice transfer ownership to? Enter [_Program Derived Addresses_](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses).
 
-#### theory recap
-
+::: theory-recap
 - developers should use the `data` field to save data inside accounts
 - the token program owns token accounts which - inside their `data` field - hold [relevant information](https://github.com/solana-labs/solana-program-library/blob/master/token/program/src/state.rs#L86)
 - the token program also owns token mint accounts with [relevant data](https://github.com/solana-labs/solana-program-library/blob/master/token/program/src/state.rs#L86)
 - each token account holds a reference to their token mint account, thereby stating which token mint they belong to
 - the token program allows the (user space) owner of a token account to transfer its ownership to another address
+- All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the data field which is solely meant for user space information
+:::
 
 ### Program Derived Addresses (PDAs) Part 1
 
@@ -754,12 +762,12 @@ fn process_instruction(
 }
 ```
 
-#### theory recap
-
+::: theory-recap
 - Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
 - When including a `signed` account in a program call, in all CPIs including that account made by that program inside the current instruction, the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
+:::
 
-### Trying out the program, understanding program calls
+### Trying out the program, understanding Alice's transaction
 
 Because we've built a part of the program that is complete in itself, we can now try it out! In doing so, we can acquire more knowledge about Solana, e.g. where do accounts come from?
 
@@ -821,13 +829,23 @@ With all the steps completed, all that is left to do is to fill in Alice's expec
 
 I've created a little slideshow to show the life of the transaction that Alice sends off. As you can see in the top right corner,
 
-> there can be several _instructions_ (ix) inside one _transaction_ (tx) in Solana. These instructions are executed out _synchronously_ and the tx as a whole is executed _atomically_.
+> there can be several _instructions_ (ix) inside one _transaction_ (tx) in Solana. These instructions are executed out _synchronously_ and the tx as a whole is executed _atomically_
 
 This means that if a single instruction fails, the entire transaction fails. Right in ix1, we can see how accounts come to life.
 
-> The system program is responsible for allocating account space and assigning (internal - not user space) account ownership.
+> The system program is responsible for allocating account space and assigning (internal - not user space) account ownership
 
-I'll now walk you through the important parts of the frontend code which uses the Solana js/ts libraries. Feel free to look at [the code](https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts) yourself.
+Alice's transaction consists of 5 instructions.
+
+```
+1. create empty account owned by token program
+2. initialize empty account as Alice's X token account
+3. transfer X tokens from Alice's main X token account to her temporary X token account
+4. create empty account owned by escrow program
+5. initialize empty account as escrow state and transfer temporary X token account ownership to PDA
+```
+
+I'll now walk you through the important parts of the frontend code which uses the Solana js/ts libraries. Feel free to look at [the code](https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts) yourself. 
 
 ``` ts
 const tempTokenAccount = new Account();
@@ -843,9 +861,9 @@ const createTempTokenAccountIx = SystemProgram.createAccount({
 The first instruction that is created is to create the new X token account that will be transferred to the PDA eventually. Note that it's just built here,
 nothing is sent yet. The function requires the user to specify which program the new account should belong to (`programId`), how much space it should have (`space`), what the initial balance should be (`lamports`), where to transfer that balance from (`fromPubkey`) and the address of the new account (`newAccountPubkey`). It's pretty straightforward except for line 5 where we meet a new Solana term: [Rent](https://docs.solana.com/implemented-proposals/rent).
 
-> Rent is deducted from accounts according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshhold that depends on the space it's consuming.
+> Rent is deducted from accounts according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming
 
-`connection.getMinimumBalanceForRentExemption(AccountLayout.span, 'singleGossip')` finds exactly this threshhold for the size of a token account (`=AccountLayout.span`).
+`connection.getMinimumBalanceForRentExemption(AccountLayout.span, 'singleGossip')` finds exactly this threshold for the size of a token account (`=AccountLayout.span`).
 
 What about the `'singleGossip'` argument? `singleGossip` is one of the available [_Commitments_](https://solana-labs.github.io/solana-web3.js/typedef/index.html#static-typedef-Commitment) and tells us how to query the network. Which commitment level to pick depends on your use case. If you're moving millions and want to be as sure as possible that your tx cannot be rolled back, choose `max`. `singleGossip` is still pretty safe because of [optimistic confirmation and slashing](https://docs.solana.com/proposals/optimistic-confirmation-and-slashing).
 
@@ -879,9 +897,17 @@ const tx = new Transaction()
 await connection.sendTransaction(tx, [feePayerAcc, tempTokenAccount, escrowAccount]);
 ```
 
-Finally, we create a new Transaction and add all the instructions. Then, we send off the tx with its signers. In the js library world, an `Account` has a double meaning and is also used as the object to hold a keypair. That means the signers we pass in include the private keys and can actually sign. Obviously, we have to add Alice's account as a signer. We also have to add the other two accounts because it turns out when the system program creates a new account, the tx needs to be signed by that account.
+Finally, we create a new Transaction and add all the instructions. Then, we send off the tx with its signers. In the js library world, an `Account` has a double meaning and is also used as the object to hold a keypair. That means the signers we pass in include the private keys and can actually sign. Obviously, we have to add Alice's account as a signer - she pays the fees and needs to authorize transfers from her accounts. We also have to add the other two accounts because it turns out when the system program creates a new account, the tx needs to be signed by that account.
 
-An important note here is that while it's not important that all the instructions are in the same transaction, **it is very important that at least ix 1,2 and ix 4,5 are in the same transaction**. This is because after an account has been created by the system program, it's kind of just floating on the blockchain, still uninitialized, with no user space owner. If, for example, you put ix 1 and 2 in different transactions, someone could try to send a tx between those two and initialize their own token account, using the then still ownerless account created by ix 1. This cannot happen if you put ix 1 and 2 in the same transaction since a tx is executed atomically.
+What we end up with after Alice's transaction is the last slide. There's a new esrow state account that holds relevant data to complete the trade as well as a new token account that is owned by a PDA of the escrow program. That token account's token balance is the amount of X tokens Alice would like to trade in for the expected amount (which is saved in the escrow state acount) of Y tokens.
+
+An important note here is that while it's not important that all the instructions are in the same transaction, **it is important that at least ix 1,2 and ix 4,5 are in the same transaction**. This is because after an account has been created by the system program, it's kind of just floating on the blockchain, still uninitialized, with no user space owner. If, for example, you put ix 1 and 2 in different transactions, someone could try to send a tx between those two and initialize their own token account, using the then still ownerless account created by ix 1. This cannot happen if you put ix 1 and 2 in the same transaction since a tx is executed atomically.
+
+::: theory-recap
+<li>There can be several <i>instructions</i>(ix) inside one <i>transaction</i> (tx) in Solana. These instructions are executed out <i>synchronously</i> and the tx as a whole is executed <i>atomically</i></li>
+<li>The system program is responsible for allocating account space and assigning (internal - not user space) account ownership</li>
+<li>Rent is deducted from accounts according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming</li>
+:::
 
 #### Adapting the frontend for real life use
 
