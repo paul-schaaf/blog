@@ -805,7 +805,19 @@ With all the steps completed, all that is left to do is to fill in Alice's expec
 
 #### Understanding what just happened, reading the frontend code
 
-<Slideshow :images="['/images/2020-12-24_no_but_yes.jpg']"/>
+<div style="margin-top: 1.5rem">
+    <Slideshow :images="[
+        '/images/escrow-alice-initial.jpg',
+        '/images/escrow-alice-ix1.jpg',
+        '/images/escrow-alice-ix2-1.jpg',
+        '/images/escrow-alice-ix2-2.jpg',
+        '/images/escrow-alice-ix3.jpg',
+        '/images/escrow-alice-ix4.jpg',
+        '/images/escrow-alice-ix5-1.jpg',
+        '/images/escrow-alice-ix5-2.jpg',
+        '/images/escrow-alice-end.jpg'
+    ]"/>
+</div>
 
 #### Adapting the frontend for real life use
 
