@@ -845,6 +845,10 @@ Alice's transaction consists of 5 instructions.
 5. initialize empty account as escrow state and transfer temporary X token account ownership to PDA
 ```
 
+As you can see,
+
+> instructions may depend on previous instructions inside the same transaction
+
 I'll now walk you through the important parts of the frontend code which uses the Solana js/ts libraries. Feel free to look at [the code](https://github.com/paul-schaaf/escrow-ui/blob/master/src/util/initEscrow.ts) yourself. 
 
 ``` ts
@@ -904,9 +908,11 @@ What we end up with after Alice's transaction is the last slide. There's a new e
 An important note here is that while it's not important that all the instructions are in the same transaction, **it is important that at least ix 1,2 and ix 4,5 are in the same transaction**. This is because after an account has been created by the system program, it's kind of just floating on the blockchain, still uninitialized, with no user space owner. If, for example, you put ix 1 and 2 in different transactions, someone could try to send a tx between those two and initialize their own token account, using the then still ownerless account created by ix 1. This cannot happen if you put ix 1 and 2 in the same transaction since a tx is executed atomically.
 
 ::: theory-recap
-<li>There can be several <i>instructions</i>(ix) inside one <i>transaction</i> (tx) in Solana. These instructions are executed out <i>synchronously</i> and the tx as a whole is executed <i>atomically</i></li>
+<li>There can be several <i>instructions</i> (ix) inside one <i>transaction</i> (tx) in Solana. These instructions are executed out <i>synchronously</i> and the tx as a whole is executed <i>atomically</i></li>
 <li>The system program is responsible for allocating account space and assigning (internal - not user space) account ownership</li>
+<li>instructions may depend on previous instructions inside the same transaction</li>
 <li>Rent is deducted from accounts according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming</li>
+<li>Commitment settings give downstream developers ways to query the network which differ in finality likelihood</li>
 :::
 
 #### Adapting the frontend for real life use
