@@ -1,6 +1,8 @@
 <template>
     <div>
-        <img :src="images[slideIndex]" class="zoom-image"/>
+        <div class="zoom-image">
+            <img :src="images[slideIndex]"/>
+        </div>
         <div style="display: flex; justify-content: center">
             <span :class="{ 'disabled-slider': slideIndex === 0 }" class="green-underline-hover" style="margin-right: 10px; cursor: pointer; user-select: none" @click="updateSlideIndex(-1)">Previous</span>
             <span :class="{ 'disabled-slider': slideIndex === images.length - 1 }" class="green-underline-hover" style="cursor:pointer; user-select: none" @click="updateSlideIndex(1)">Next</span>

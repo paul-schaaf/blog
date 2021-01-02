@@ -41,13 +41,7 @@ module.exports = {
       [
         'medium-zoom',
         {
-          selector: '.vuepress-blog-theme-content img:not(.no-medium-zoom)',
-        },
-      ],
-      [
-        'medium-zoom',
-        {
-          selector: '.zoom-image'
+          selector: 'div.zoom-image img'
         }
       ],
       'reading-progress'

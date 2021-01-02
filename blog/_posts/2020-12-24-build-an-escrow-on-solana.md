@@ -38,7 +38,11 @@ Before we start coding, let's look at the final product to understand what we ar
 ### What is an escrow?
 An escrow smart contract is a good example to look at and build because it highlights well what a blockchain makes possible while still being easy to understand, allowing us to focus on the code itself. For those unfamiliar with the concept, here is a brief explainer.
 
+<div class="zoom-image">
+
 ![](../images/2020-12-24/escrow.gif)
+
+</div>
 
 Imagine Alice has an asset _A_ and Bob has an asset _B_. They would like to trade their assets but neither wants to send their asset first. After all, what if the other party does not hold up their end of the trade and runs away with both assets? A deadlock will be reached where no party wants to send their asset first.
 
@@ -51,9 +55,9 @@ I'll end this background section here. The internet already has a lot of materia
 ## Building the escrow program - Alice's Transaction
 
 ### Setting up the project
-Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools.
+Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools.
 
-If you don't know how to test solana programs yet, remove all the testing code. Testing programs is a topic for another blog post. Remove the testing code in `entrypoint.rs` as well as the `tests` folder next to `src`. Lastly, remove the testing dependencies from `Cargo.toml`. It should now look like this:
+If you don't know how to test solana programs yet, remove all the testing code. Testing programs is a topic for another blog post. Remove the testing code in `entrypoint.rs` as well as the `tests` folder next to `src`. Lastly, remove the testing dependencies from [`Cargo.toml`](https://doc.rust-lang.org/book/ch01-03-hello-cargo.html?highlight=cargo#creating-a-project-with-cargo). It should now look like this:
 
 ```toml
 [package]
@@ -79,14 +83,18 @@ The reason for the existence of multiple BPF Loaders is that it itself is a prog
 
 > Solana programs are stateless
 
-If you want to store state, use accounts. Programs themselves are stored in accounts which are marked `executable`. Each account can hold data and Sol.
+If you want to store state, use [accounts](https://docs.solana.com/developing/programming-model/accounts). Programs themselves are stored in accounts which are marked `executable`. Each account can hold data and Sol.
 Each account also has an `owner` and only the owner may debit the account and adjust its data. Crediting may be done by anyone. Here's an example of an [account](https://explorer.solana.com/address/6TkKqq15wXjqEjNg9zqTKADwuVATR9dW3rkNnsYme1ea). As you can see in the example account, it has its owner field set to the `System Program`. As a matter of fact,
 
 > Accounts can only be owned by programs
 
 Now you might be thinking "does that mean that my own SOL account is actually not owned by myself?". And you'd be right! But fear not, your funds are safu. The way it works is that even basic SOL transactions are handled by a program on Solana: the `system program`. (As a matter of fact, even programs are owned by programs. Remember, they are stored in accounts and these `executable` accounts are owned by the BPF Loader. The only programs not owned by the BPF loader are - of course - the BPF loader itself and the System Program. They are owned by the NativeLoader and have special privileges such as allocating memory or marking accounts as executable)
 
+<div class="zoom-image">
+
 ![](../images/2020-12-24/2020-12-24-always-has-been.jpeg)
+
+</div>
 
 [If you look at the system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs#L179) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited.
 
@@ -96,7 +104,7 @@ We'll get to how a program can check whether a transaction has been signed and h
 
 > All accounts to be read or written to must be passed into the entrypoint function
 
-This allows the runtime to parallelise transactions (among even more other things? I'm not sure here myself). If the runtime knows all the accounts that will be written to and read by everyone at all times it can run those transactions in parallel that do not touch the same accounts or touch the same accounts but only read and don't write. If a transaction violates this constraint and reads or writes to an account of which the runtime has not been notified, the transaction will fail.
+This allows the runtime to parallelise transactions. If the runtime knows all the accounts that will be written to and read by everyone at all times it can run those transactions in parallel that do not touch the same accounts or touch the same accounts but only read and don't write. If a transaction violates this constraint and reads or writes to an account of which the runtime has not been notified, the transaction will fail.
 
 Now, to finally conclude this section, create a new `entrypoint.rs` file next to `lib.rs` and move the `lib.rs` code there. Finally, register the entrypoint module inside `lib.rs`.
 
@@ -157,7 +165,11 @@ Let's now look at the different execution paths our program may take by zooming 
 Remember we have two parties _Alice_ and _Bob_ which means there are two `system_program` accounts. Because _Alice_ and _Bob_ want to transfer tokens,
 we'll make use of - you guessed it! - the `token program`. This program assigns each token its own account. Both _Alice_ and _Bob_ need an account for each token (which we'll call X and Y), so we get 4 more accounts. Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data. Note that this account is created for each exchange. For now, our world looks like this:
 
+<div class="zoom-image">
+
 ![](../images/2020-12-24/2020-12-24-escrow-sketch-1.png)
+
+</div>
 
 Now there are two questions you might ask yourself. How will Alice and Bob transfer ownership of X and Y respectively to the escrow and how are their main accs connected to their token accs?
 To find an answer to these questions, we must briefly jump into the `token program`.
@@ -180,14 +192,22 @@ You've probably noticed the `mint` field in the explorer. This is how we know wh
 
 With all this in mind, we can create populate our world with more information:
 
+<div class="zoom-image">
+
 ![](../images/2020-12-24/2020-12-24-escrow-sketch-2.png)
+
+</div>
 
 Now we know how all those accounts are connected but we don't know yet how Alice can transfer tokens to the escrow. We'll cover this now.
 #### transferring ownership
 
 The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade. Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
 
+<div class="zoom-image">
+
 ![](../images/2020-12-24/2020-12-24-escrow-sketch-3.png)
+
+</div>
 
 There is one more problem here. What exactly does Alice transfer ownership to? Enter [_Program Derived Addresses_](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses).
 
@@ -204,7 +224,11 @@ There is one more problem here. What exactly does Alice transfer ownership to? E
 
 Transferring ownership to the account the program is stored at is a bad idea. The program's deployer might have the private key to that address and you don't want them to own your funds. The question is then, can programs be given user space ownership of a token account?
 
+<div class="zoom-image">
+
 ![](../images/2020-12-24/2020-12-24_no_but_yes.jpg)
+
+</div>
 
 The trick is to assign token account ownership to a _Program Derived Address_ of the escrow program. For now, it is enough for you to know this address exists and we can use it to let a program sign transactions or assign it user space ownership of accounts. We will cover PDAs in depth later but for now let's go back to coding!
 
@@ -227,6 +251,7 @@ pub enum EscrowInstruction {
     /// 2. `[]` The initializer's token account for the token they will receive should the trade go through
     /// 3. `[writable]` The escrow account, it will hold all necessary info about the trade.
     /// 4. `[]` The token program
+    /// 5. `[]` The rent sysvar
     InitEscrow {
         /// The amount party A expects to receive of token Y
         amount: u64
@@ -257,7 +282,14 @@ Account 3 is the escrow account which also needs to be writable because the prog
 ```
 4. `[]` The token program
 ```
-Account 4 is the account of the token program itself. I will explain why we need this account when we get to writing the processor code
+Account 4 is the account of the token program itself. I will explain why we need this account when we get to writing the `processor` code
+```
+5. `[]` The rent sysvar
+```
+Account 5 is the `Rent` sysvar. I'll explain this as well in detail once we get to writing the `processor` code. What you should remember for now is that 
+
+> Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars are also accounts and store parameters such as what the current fee or rent is
+
 ``` rust
 InitEscrow {
     /// The amount party A expects to receive of token Y
@@ -268,7 +300,7 @@ Finally, the program requires the amount of token Y that Alice wants to receive 
 
 `instruction.rs` is responsible for decoding `instruction_data` so that's that we'll do next.
 
-``` rust{2-5,25-46}
+``` rust{2-5,26-47}
 // inside instruction.rs
 use std::convert::TryInto;
 use solana_program::program_error::ProgramError;
@@ -287,6 +319,7 @@ use crate::error::EscrowError::InvalidInstruction;
     /// 2. `[]` The initializer's token account for the token they will receive should the trade go through
     /// 3. `[writable]` The escrow account, it will hold all necessary info about the trade.
     /// 4. `[]` The token program
+    /// 5. `[]` The rent sysvar
     InitEscrow {
         /// The amount party A expects to receive of token Y
         amount: u64
@@ -320,6 +353,10 @@ impl EscrowInstruction {
 `unpack` expects a [reference](https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html) to a slice of `u8`. It looks at the first byte to determine how to decode the rest of the slice. For now, we'll leave it at one instruction (ignoring the instruction where Bob takes the trade).
 
 This won't compile because we are using an undefined error. Let's add that error next.
+
+::: theory-recap
+- Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars are stored in accounts and store parameters such as what the current fee or rent is
+:::
 
 ### error.rs
 
@@ -369,7 +406,7 @@ impl From<EscrowError> for ProgramError {
 }
 ```
 
-### processor.rs Part 1, starting to process the InitEscrow instruction
+### processor.rs Part 1, Rent Part 1, starting to process the InitEscrow instruction
 
 #### pub fn process
 
@@ -481,14 +518,15 @@ We are using a slighly different way to import a dependency here than we did we 
 Now back to `processor.rs`. Copy and replace the `solana_program` use statement and add more code to `process_init_escrow`:
 
 
-``` rust {18-23}
+``` rust {19-29}
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     program_error::ProgramError,
     msg,
     pubkey::Pubkey,
-    program_pack::{Pack, IsInitialized}
+    program_pack::{Pack, IsInitialized},
+    sysvar::{rent::Rent, Sysvar},
 };
 //inside process_init_escrow
 ...
@@ -500,6 +538,11 @@ if *received_token_account.owner != spl_token::id() {
 }
 
 let escrow_account = next_account_info(account_info_iter)?;
+let rent = &Rent::from_account_info(next_account_info(account_info_iter)?)?;
+
+if !rent.is_exempt(new_account_info.lamports(), new_account_info_data_len) {
+    return Err(EscrowError::NotRentExempt.into());
+}
 
 let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.data.borrow())?;
 if escrow_info.is_initialized() {
@@ -509,8 +552,19 @@ if escrow_info.is_initialized() {
 Ok(())
 ...
 ```
+Now we've come into contact with the [`Rent`](https://docs.solana.com/implemented-proposals/rent) sysvar. 
 
-Something unfamiliar is happening here. For the first time, we are accessing the `data` field. Because `data` is also just an array of `u8`, we need to deserialize it with `Escrow::unpack_unchecked`. This is a function inside `state.rs` which we'll create in the next section.
+> Rent is deducted from an account's balance according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming
+
+Most of the time, you want your accounts to be rent-exempt, cause once their balance goes to zero, they _disappear_. More on this at the end of Bob's transaction.
+
+Also, make sure to add the new error variant inside `error.rs`.
+
+Another unfamiliar thing is happening here. For the first time, we are accessing the `data` field. Because `data` is also just an array of `u8`, we need to deserialize it with `Escrow::unpack_unchecked`. This is a function inside `state.rs` which we'll create in the next section.
+
+::: theory-recap
+- Rent is deducted from an account's balance according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming
+:::
 
 ### state.rs
 
@@ -656,7 +710,7 @@ use crate::{instruction::EscrowInstruction, state::Escrow};
 
 Let's finish the `process_init_escrow` function by first adding the state serialization. We've already created the escrow struct instance and checked that it is indeed uninitialized. Time to populate the struct's fields!
 
-``` rust {7-14}
+``` rust {8-14}
 // inside process_init_escrow
 ...
 let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.data.borrow())?;
@@ -813,7 +867,7 @@ Go through the same steps for token Y. You don't have to mint tokens to Alice's 
 
 With all the steps completed, all that is left to do is to fill in Alice's expected amount and the amount she wants to put into the escrow. Fill in both numbers (the 2nd needs to be lower than what you minted to Alice's account) and hit `Init Escrow`.
 
-#### Understanding what just happened, Rent, and Commitment
+#### Understanding what just happened, Rent Part 2, and Commitment
 
 <div style="margin-top: 1.5rem">
     <Slideshow :images="[
@@ -867,11 +921,7 @@ const createTempTokenAccountIx = SystemProgram.createAccount({
 ```
 
 The first instruction that is created is to create the new X token account that will be transferred to the PDA eventually. Note that it's just built here,
-nothing is sent yet. The function requires the user to specify which program the new account should belong to (`programId`), how much space it should have (`space`), what the initial balance should be (`lamports`), where to transfer that balance from (`fromPubkey`) and the address of the new account (`newAccountPubkey`). It's pretty straightforward except for line 5 where we meet a new Solana term: [Rent](https://docs.solana.com/implemented-proposals/rent).
-
-> Rent is deducted from accounts according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming
-
-`connection.getMinimumBalanceForRentExemption(AccountLayout.span, 'singleGossip')` finds exactly this threshold for the size of a token account (`=AccountLayout.span`).
+nothing is sent yet. The function requires the user to specify which program the new account should belong to (`programId`), how much space it should have (`space`), what the initial balance should be (`lamports`), where to transfer that balance from (`fromPubkey`) and the address of the new account (`newAccountPubkey`).
 
 What about the `'singleGossip'` argument? `singleGossip` is one of the available [_Commitments_](https://solana-labs.github.io/solana-web3.js/typedef/index.html#static-typedef-Commitment) and tells us how to query the network. Which commitment level to pick depends on your use case. If you're moving millions and want to be as sure as possible that your tx cannot be rolled back, choose `max`. `singleGossip` is still pretty safe because of [optimistic confirmation and slashing](https://docs.solana.com/proposals/optimistic-confirmation-and-slashing).
 
@@ -919,19 +969,22 @@ There are a couple of things that were left out - to keep things simple - but sh
 <li>There can be several <i>instructions</i> (ix) inside one <i>transaction</i> (tx) in Solana. These instructions are executed out <i>synchronously</i> and the tx as a whole is executed <i>atomically</i></li>
 <li>The system program is responsible for allocating account space and assigning (internal - not user space) account ownership</li>
 <li>Instructions may depend on previous instructions inside the same transaction</li>
-<li>Rent is deducted from accounts according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming</li>
 <li>Commitment settings give downstream developers ways to query the network which differ in finality likelihood</li>
 :::
 
 ## Building the escrow program - Bob's Transaction
 
-After Alice has created the escrow, she can send the escrow state account address to Bob. If he sends the expected amount of Y tokens to the escrow, the escrow will send him Alice's X tokens and Alice his Y tokens. I'll now show you how to make the escrow program ready for Bob's transaction. During this second part of the guide, you will also get to know some more Solana concepts! This part will be considerably shorter because we can reuse a lot of the code we wrote already!
+After Alice has created the escrow, she can send the escrow state account address to Bob. If he sends the expected amount of Y tokens to the escrow, the escrow will send him Alice's X tokens and Alice his Y tokens. I'll now show you how to make the escrow program ready for Bob's transaction. During this second part of the guide, you will also get to know some more Solana concepts! This part will be considerably shorter because we can reuse a lot of the code we wrote already and I won't spend much time on code that needs to be written but you already know how.
 
 ### instruction.rs Part 3, understanding what Bob's transaction should do
 
 To understand what Bob's transaction should do, let's have a look once again at the state of things after Alice's transaction is complete.
 
+<div class="zoom-image">
+
 ![](../images/2020-12-24/escrow-alice-end.jpg)
+
+</div>
 
 We can see that there is an escrow account which holds all the info necessary for the trade between Alice and Bob and there also is a token account which holds Alice's X tokens and is owned by a PDA of the escrow program.What we (and Bob) would like the tx to do is move the X tokens from the PDA-owned X token account to his X token account. The escrow program should also subtract tokens from Bob's Y token account and add them to the Y token account Alice had the escrow program write into the escrow state account (the `initializer_receiving_token_account_pubkey` property inside the Escrow struct inside `state.rs`). Lastly, the two accounts that have been created for the trade (the escrow state account and the temporary X token account) should be cleaned up since there is no need for them anymore.
 
@@ -945,22 +998,231 @@ Equipped with this knowledge, we can add the endpoint for what I've decided to c
 ///
 /// 0. `[signer]` The account of the person taking the trade
 /// 1. `[writable]` The taker's token account for the token they will receive should the trade go through
-/// 2. `[writable]` The PDA's temp token account to get tokens from and eventually close
-/// 3. `[writable]` The creator's main account to send their rent fees to
-/// 4. `[writable]` The creator's token account that will receive tokens
-/// 5. `[writable]` The escrow account holding the escrow info
-/// 6. `[]` The token program
-/// 7. `[]` The PDA account
+/// 2. `[writable]` The taker's token account for the token they send
+/// 3. `[writable]` The PDA's temp token account to get tokens from and eventually close
+/// 4. `[writable]` The creator's main account to send their rent fees to
+/// 5. `[writable]` The creator's token account that will receive tokens
+/// 6. `[writable]` The escrow account holding the escrow info
+/// 7. `[]` The token program
+/// 8. `[]` The PDA account
 Exchange {
     /// the amount the taker expects to be paid in the other token, as a u64 because that's the max possible supply of a token
     amount: u64,
 }
 ```
-The tx requires a total of 8 accounts. I will skip explaining them because you will see how they are used inside `processor.rs` and by now you should feel comfortable figuring this out by yourself!
+The tx requires a total of 9 accounts. I will skip explaining them because you will see how they are used inside `processor.rs` and by now you should feel comfortable figuring this out by yourself!
 
 The tx also expects an amount whose addition to the program actually isn't a necessity. The program will check whether the temp X token account holds the amount of X tokens Bob expects. Bob could check this himself by looking at the chain (and not sending his tx if he doesn't like what he's seeing) but this way it's more convenient although it does come at the risk of a failed transaction and wasted tx fees if the amount he wants does not equal the amount in the temp X token account. But with transaction fees costing a fraction of a cent this is acceptable.
 
-And that's it for `instruction.rs`!
+We also need to adjust the match expression in the `unpack` function to include our new field.
+
+``` rust
+// inside unpack
+Ok(match tag {
+    0 => Self::InitEscrow {
+        amount: Self::unpack_amount(rest)?,
+    },
+    1 => Self::Exchange {
+        amount: Self::unpack_amount(rest)?
+    },
+    _ => return Err(InvalidInstruction.into()),
+})
+```
+
+And that's it for `instruction.rs`! At this point, you could try and finish the rest by yourself as an exercise but of course, you can also just go on with the guide. If you do decide to try it on your own first, make sure to look up the `invoke_signed` function, you will need it when transferring X tokens to Bob. Additionally, keep in mind you should somehow clean up the accounts created for the trade.
+
+### processor Part 3, PDAs Part 3
+
+The `process` function inside `processor.rs` will not compile now because a match has to be _exhaustive_, i.e. match all the variants of the enum. Let's adjust it.
+
+``` rust
+match instruction {
+    EscrowInstruction::InitEscrow { amount } => {
+        msg!("Instruction: InitEscrow");
+        return Self::process_init_escrow(accounts, amount, program_id);
+    },
+    EscrowInstruction::Exchange { amount } => {
+        msg!("Instruction: Exchange");
+        return Self::process_exchange(accounts, amount, program_id);
+    }
+};
+```
+
+Next, create the `process_exchange` function referenced here.
+
+``` rust
+// inside: impl Processor {}
+fn process_exchange(
+    accounts: &[AccountInfo],
+    amount_expected_by_taker: u64,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    let taker = next_account_info(account_info_iter)?;
+
+    if !taker.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    let takers_sending_token_account = next_account_info(account_info_iter)?;
+
+    let takers_received_token_account = next_account_info(account_info_iter)?;
+
+    let pdas_temp_token_account = next_account_info(account_info_iter)?;
+    let pdas_temp_token_account_info =
+        TokenAccount::unpack(&pdas_temp_token_account.data.borrow())?;
+    let (pda, nonce) = Pubkey::find_program_address(&[b"escrow"], program_id);
+
+    if amount_expected_by_taker != pdas_temp_token_account_info.amount {
+        return Err(EscrowError::ExpectedAmountMismatch.into());
+    }
+
+    let creators_main_account = next_account_info(account_info_iter)?;
+    let creators_received_token_account = next_account_info(account_info_iter)?;
+    let escrow_account = next_account_info(account_info_iter)?;
+
+    let mut escrow_info = Escrow::unpack(&escrow_account.data.borrow())?;
+
+    if escrow_info.initializer_temp_token_account_pubkey != *pdas_temp_token_account.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    if escrow_info.initializer_pubkey != *creators_main_account.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    if escrow_info.initializer_receiving_token_account_pubkey != *creators_received_token_account.key {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    let token_program = next_account_info(account_info_iter)?;
+
+    let transfer_to_creator_ix = spl_token::instruction::transfer(
+        token_program.key,
+        takers_sending_token_account.key,
+        creators_received_token_account.key,
+        taker.key,
+        &[&taker.key],
+        escrow_info.expected_amount,
+    )?;
+    msg!("Calling the token program to transfer tokens to the escrow's creator...");
+    invoke(
+        &transfer_to_creator_ix,
+        &[
+            takers_sending_token_account.clone(),
+            creators_received_token_account.clone(),
+            taker.clone(),
+            token_program.clone(),
+        ],
+    )?;
+    Ok(())
+}
+```
+
+Up to this point, there's really nothing new. We get the accounts and do some checks on them, verifying that Bob has actually passed in the correct accounts with the correct values and that the amount in the PDA's X token account is what Bob expects. We then use _signature extension_ to make the token transfer to Alice's Y token account on Bob's behalf. You can fix the compilation errors yourself now. Create the new error variant for the `ExpectedAmountMismatch` and pull the required modules into scope with `use`.
+
+The last parts of the `process_exchange` function include something new again:
+
+``` rust
+...
+let pda_account = next_account_info(account_info_iter)?;
+
+let transfer_to_taker_ix = spl_token::instruction::transfer(
+    token_program.key,
+    pdas_temp_token_account.key,
+    takers_received_token_account.key,
+    &pda,
+    &[],
+    pdas_temp_token_account_info.amount,
+)?;
+msg!("Calling the token program to transfer tokens to the taker...");
+invoke_signed(
+    &transfer_to_taker_ix,
+    &[
+        pdas_temp_token_account.clone(),
+        takers_received_token_account.clone(),
+        pda_account.clone(),
+        token_program.clone(),
+    ],
+    &[&[&b"escrow"[..], &[nonce]]],
+)?;
+
+let close_pdas_temp_acc_ix = spl_token::instruction::close_account(
+    token_program.key,
+    pdas_temp_token_account.key,
+    creators_main_account.key,
+    &pda,
+    &[&pda]
+)?;
+msg!("Calling the token program to close pda's temp account...");
+invoke_signed(
+    &close_pdas_temp_acc_ix,
+    &[
+        pdas_temp_token_account.clone(),
+        creators_main_account.clone(),
+        pda_account.clone(),
+        token_program.clone(),
+    ],
+    &[&[&b"escrow"[..], &[nonce]]],
+)?;
+
+Ok(())
+```
+
+Here we use the `invoke_signed` function to allow the PDA to sign something. Recall that a PDA is _bumped off_ the Ed25519 elliptic curve. Hence, there is no private key. The question is then, can PDAs sign CPIs? And the answer is
+
+<div class="zoom-image">
+
+![](../images/2020-12-24/2020-12-24_no_but_yes.jpg)
+
+</div>
+
+The PDA isn't actually signing the CPI call in cryptographic fashion. In addition to the two arguments, the `invoke_signed` function takes a third one: the seeds that were used to create the PDA the CPI is supposed to be "signed" with. You might be surprised to find the nonce there because you didn't define it as a seed. Well, the nonce is the seed that the `find_program_address` function adds to make the address fall off the Ed25519 curve. Now, 
+
+> when a program calls `invoke_signed`, the runtime uses those seeds and the program id of the calling program to recreate the PDA and if it matches one of the given accounts inside `invoke_signed`'s arguments, that account's `signed` property will be set to true
+
+No other program can fake this PDA because it is the runtime that sees which program is making the `invoke_signed` call. Only the escrow program will have the programId that will result in a PDA equal to one of the addresses in `invoke_signed`'s accounts argument.
+
+We can see now that the first `invoke_signed` call transfers the tokens from the temp X token account to Bob's main X token account. The second one _closes_ the account. What does this mean? Recall that accounts are required to have a minimum balance to be rent exempt. Wouldn't it be nice if we could recover that balance when we no longer need an account? Turns out, we can and it's as simple as transferring the balance to a different account. 
+
+> If an account has no balance left, it will be purged from memory by the runtime after the instruction (you can see this when going navigating to an account that has been closed in the explorer)
+
+Now we can see why we had to check whether the escrow state account was rent-exempt. If we had't and Alice were to pass in a non-rent-exempt account, the account balance might go to zero before Bob takes the trade. With the account gone, Alice would have no way to recover her tokens.
+
+Since the temp token account is owned by the token program, only the token program may decrease the balance. And because this action requires permission of the (user space) owner of the token account (in this case the PDA), we use `invoke_signed` again.
+
+To conclude this function and the program, we can do the same with the escrow state account.
+
+```rust
+msg!("Closing the escrow account...");
+**creators_main_account.lamports.borrow_mut() = creators_main_account.lamports()
+.checked_add(escrow_account.lamports())
+.ok_or(EscrowError::AmountOverflow)?;
+**escrow_account.lamports.borrow_mut() = 0;
+
+Ok(())
+```
+
+Transferring the lamports is as simple as adding the amount to one account and subtracting it from the other. We can adjust the balance of Alice's main account (she should get the lamports since she created the two accounts required for the trade) even though the escrow program is not the owner of her account because we are _crediting_ lamports to her account. Again, add the new error to `error.rs`.
+
+And that's it! That's the program. Well done!
+
+<div style="display: flex; justify-content: center">
+
+![](../images/applauding_sheep.gif)
+
+</div>
+
+::: theory-recap
+- when a program calls `invoke_signed`, the runtime uses the given seeds and the program id of the calling program to recreate the PDA and if it matches one of the given accounts inside `invoke_signed`'s arguments, that account's `signed` property will be set to true
+- If an account has no balance left, it will be purged from memory by the runtime after the instruction (you can see this when going navigating to an account that has been closed in the explorer)
+:::
+
+### Trying out the program, understanding Bob's transaction
+
+We can now try out the entire program. For this, I've copied Alice's UI below and added another for Bob's side.
+
+You'll need to build and deploy the updated program. Also, for a realistic test, open another _incognito_ browser window and create a new wallet again. You can reuse the two token mint accounts you created a while ago. Create two new token accounts to hold Bob's X and Y tokens. Now you can create a new escrow as Alice and accept the trade as Bob.
 
 ## Q & A
 
@@ -972,7 +1234,23 @@ This is a collection of questions (and their answers) that have been asked by re
 
 **A**: That wouldn't work because the `from` address of a token transfer needs to sign the transaction. Bob could ask Alice to sign his transaction but that would require more communication between Alice and Bob and thereby result in worse user experience. What you could use is a token account's (user space) `delegate` property but a token account can only have 1 delegate which means Alice could only have one ongoing escrow at a time.
 
-## Potential program improvements
+## Potential improvements
+
+Here are some ideas to improve the user experience
+
+- build a better UI
+- add a `Cancel` endpoint to the program. Currently, Alice's tokens are stuck in limbo and she will not be able to recover them if Bob decides not to take the trade. Add an endpoint that allows Alice to cancel the ongoing escrow, transferring the X tokens back to her and closing the two created accounts. 
 
 ## Theory recap
 
+add rent exemption check to program
+
+clarify token mint jargon
+
+## Further reading
+
+- [The docs](https://docs.solana.com)
+- [The autogenerated docs](https://docs.rs/solana-program/1.5.0/solana_program/index.html)
+- [The Solana medium account](https://medium.com/solana-labs)
+- [The token program](https://github.com/solana-labs/solana-program-library/tree/master/token/program)
+- [The system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs)
