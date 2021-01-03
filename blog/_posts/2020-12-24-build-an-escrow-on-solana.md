@@ -83,7 +83,7 @@ The reason for the existence of multiple BPF Loaders is that it itself is a prog
 
 > Solana programs are stateless
 
-If you want to store state, use [accounts](https://docs.solana.com/developing/programming-model/accounts). Programs themselves are stored in accounts which are marked `executable`. Each account can hold data and Sol.
+If you want to store state, use [accounts](https://docs.solana.com/developing/programming-model/accounts). Programs themselves are stored in accounts which are marked `executable`. Each account can hold data and SOL.
 Each account also has an `owner` and only the owner may debit the account and adjust its data. Crediting may be done by anyone. Here's an example of an [account](https://explorer.solana.com/address/6TkKqq15wXjqEjNg9zqTKADwuVATR9dW3rkNnsYme1ea). As you can see in the example account, it has its owner field set to the `System Program`. As a matter of fact,
 
 > Accounts can only be owned by programs
@@ -154,7 +154,7 @@ The flow of a program using this structure looks like this:
 
 As you can see,
 
-> instruction.rs defines the API of the program
+> instruction.rs defines the "API" of a program
 
 While there is only one entrypoint, program execution can follow different paths depending on the given instruction data that is decoded inside `instruction.rs`.
 
@@ -163,7 +163,7 @@ While there is only one entrypoint, program execution can follow different paths
 Let's now look at the different execution paths our program may take by zooming out and sketching the program flow for our escrow program.
 
 Remember we have two parties _Alice_ and _Bob_ which means there are two `system_program` accounts. Because _Alice_ and _Bob_ want to transfer tokens,
-we'll make use of - you guessed it! - the `token program`. This program assigns each token its own account. Both _Alice_ and _Bob_ need an account for each token (which we'll call X and Y), so we get 4 more accounts. Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data. Note that this account is created for each exchange. For now, our world looks like this:
+we'll make use of - you guessed it! - the `token program`. To hold a token, you need a token account. Both _Alice_ and _Bob_ need an account for each token (which we'll call X and Y), so we get 4 more accounts. Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data. Note that this account is created for each exchange. For now, our world looks like this:
 
 <div class="zoom-image">
 
@@ -171,8 +171,8 @@ we'll make use of - you guessed it! - the `token program`. This program assigns 
 
 </div>
 
-Now there are two questions you might ask yourself. How will Alice and Bob transfer ownership of X and Y respectively to the escrow and how are their main accs connected to their token accs?
-To find an answer to these questions, we must briefly jump into the `token program`.
+Now there are two questions you might ask yourself. How will Alice and Bob transfer ownership of X and Y to the escrow respectively and how are their main accounts connected to their token accounts?
+To find answers to these questions, we must briefly jump into the `token program`.
 
 ### The token program Part 1
 
@@ -186,9 +186,9 @@ It assigns each token account an owner. Note that this token account owner attri
 
 > All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information
 
-We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/FpYU4M8oH9pfUqzpff44gsGso96MUKW1G1tBZ9Kxcb7d?cluster=mainnet-beta).
+We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/FpYU4M8oH9pfUqzpff44gsGso96MUKW1G1tBZ9Kxcb7d?cluster=mainnet-beta). It parses the account's `data` property and displays its user space fields formatted properly.
 
-You've probably noticed the `mint` field in the explorer. This is how we know which token the token account belongs to. For each token there is 1 mint account that holds the token's metadata such as the supply. We'll need this field later to verify that the token accs Alice and Bob use really belong to asset X and Y and that neither party is sneaking in a wrong asset.
+You've probably noticed the `mint` field in the explorer. This is how we know which token the token account belongs to. For each token there is 1 mint account that holds the token's metadata such as the supply. We'll need this field later to verify that the token accounts Alice and Bob use really belong to asset X and Y and that neither party is sneaking in a wrong asset.
 
 With all this in mind, we can create populate our world with more information:
 
@@ -201,7 +201,7 @@ With all this in mind, we can create populate our world with more information:
 Now we know how all those accounts are connected but we don't know yet how Alice can transfer tokens to the escrow. We'll cover this now.
 #### transferring ownership
 
-The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade. Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
+The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade (The token program sets no limit of how many token accounts for the same mint one may be the owner of). Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
 
 <div class="zoom-image">
 
@@ -222,7 +222,7 @@ There is one more problem here. What exactly does Alice transfer ownership to? E
 
 ### Program Derived Addresses (PDAs) Part 1
 
-Transferring ownership to the account the program is stored at is a bad idea. The program's deployer might have the private key to that address and you don't want them to own your funds. The question is then, can programs be given user space ownership of a token account?
+We'd like some way for the program to own the X tokens while the escrow is open and waiting for Bob's transaction. The question is then, can programs be given user space ownership of a token account?
 
 <div class="zoom-image">
 
@@ -288,7 +288,7 @@ Account 4 is the account of the token program itself. I will explain why we need
 ```
 Account 5 is the `Rent` sysvar. I'll explain this as well in detail once we get to writing the `processor` code. What you should remember for now is that 
 
-> Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars are also accounts and store parameters such as what the current fee or rent is
+> Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars can be accessed through accounts and store parameters such as what the current fee or rent is
 
 ``` rust
 InitEscrow {
@@ -501,9 +501,11 @@ fn process_init_escrow(
 ...
 ```
 
-Next, add the highlighted lines. The temporary token account needs to be writable but there is no need to explicitly check this. The transaction will fail automatically should Alice not mark the account as writable. You might ask yourself, "why do we check that the `received_token_account` is actually owned by the token program but don't do the same for the `temp_token_account`?". The answer is that later on in the function we will ask the token program to transfer ownership of the `temp_token_account` to the _PDA_. This transfer will fail if the `temp_token_account` is not owned by the token program, because - as I'm sure you remember - only programs that own accounts may change accounts. Hence, there is no need for us to add another check here.
+Next, add the highlighted lines. The temporary token account needs to be writable but there is no need to explicitly check this. The transaction will fail automatically should Alice not mark the account as writable.
 
-We don't make any changes to the `received_token_account` though. We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because the token program will attempt to send the Y tokens to Alice but not be the owner of the `received_token_account`. That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
+You might ask yourself, "why do we check that the `received_token_account` is actually owned by the token program but don't do the same for the `temp_token_account`?". The answer is that later on in the function we will ask the token program to transfer ownership of the `temp_token_account` to the _PDA_. This transfer will fail if the `temp_token_account` is not owned by the token program, because - as I'm sure you remember - only programs that own accounts may change accounts. Hence, there is no need for us to add another check here.
+
+We don't make any changes to the `received_token_account` though (inside Alice's transaction). We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because the token program will attempt to send the Y tokens to Alice but not be the owner of the `received_token_account`. That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
 
 Finally, I'm sure you have noticed that we are using a crate here which we have not registered inside `Cargo.toml` yet. Let's do that now.
 ``` toml{4}
@@ -540,7 +542,7 @@ if *received_token_account.owner != spl_token::id() {
 let escrow_account = next_account_info(account_info_iter)?;
 let rent = &Rent::from_account_info(next_account_info(account_info_iter)?)?;
 
-if !rent.is_exempt(new_account_info.lamports(), new_account_info_data_len) {
+if !rent.is_exempt(escrow_account.lamports(), escrow_account.data_len()) {
     return Err(EscrowError::NotRentExempt.into());
 }
 
@@ -552,7 +554,7 @@ if escrow_info.is_initialized() {
 Ok(())
 ...
 ```
-Now we've come into contact with the [`Rent`](https://docs.solana.com/implemented-proposals/rent) sysvar. 
+Now we see the [`Rent`](https://docs.solana.com/implemented-proposals/rent) sysvar in action. Let me explain:
 
 > Rent is deducted from an account's balance according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming
 
@@ -1230,7 +1232,7 @@ This is a collection of questions (and their answers) that have been asked by re
 
 ### Is there really a need for a temporary account for Alice's X tokens?
 
-**Q:** Is there really a need for a temporary account for Alice's X tokens? Couldn't we just save the amount of X tokens Alice wants to trade inside the escrow state as well and then inide Bob's transaction have the escrow program make a CPI to the token program to deduct that amount from her account?
+**Q:** Is there really a need for a temporary account for Alice's X tokens? Couldn't we just save the amount of X tokens Alice wants to trade inside the escrow state as well and then inside Bob's transaction have the escrow program make a CPI to the token program to deduct that amount from her account?
 
 **A**: That wouldn't work because the `from` address of a token transfer needs to sign the transaction. Bob could ask Alice to sign his transaction but that would require more communication between Alice and Bob and thereby result in worse user experience. What you could use is a token account's (user space) `delegate` property but a token account can only have 1 delegate which means Alice could only have one ongoing escrow at a time.
 
