@@ -11,9 +11,9 @@ tags:
 ::: blog-meta
 :::
 
-## Intro
+## Intro & Motivation
 This guide is meant to serve as an intro to coding on [Solana](https://www.solana.com),
-using an escrow program as an example. We'll go through the code together, building the escrow program step by step. I've also created a UI you will be able to use to try out your program.
+using an escrow program as an example. We'll go through the code together, building the escrow program step by step. I've also created a UI you will be able to use to try out your program. Additionally, you'll get to play with the (shameless plug) [spl-token-ui](https://www.spl-token-ui.com).
 
 > On Solana, smart contracts are called _programs_
 

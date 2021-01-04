@@ -26,7 +26,7 @@ module.exports = {
         'vuepress-plugin-container',
         {
           type: 'blog-meta',
-          defaultTitle: '<div class="gray-section"><span class="title">Last updated: </span>{{$page.lastUpdated}}<p class="margin-bottom-zero"><span class="title">Time to read: </span>{{$page.readingTime.minutes}} minutes</p></div>'
+          defaultTitle: '<div class="gray-section"><span class="title">Last updated: </span><span>{{$page.lastUpdated}}</span><p class="margin-bottom-zero"><span class="title">Time to read: </span>{{$page.readingTime.minutes}} minutes</p></div>'
         },
       ],
       [
