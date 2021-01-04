@@ -1,6 +1,6 @@
 // .vuepress/config.js
 module.exports = {
-    title: 'paulx_blog',
+    title: 'paulx',
     theme: '@vuepress/theme-blog',
     markdown: {
       lineNumbers: true

@@ -968,10 +968,10 @@ An important note here is that while it's not important that all the instruction
 There are a couple of things that were left out - to keep things simple - but should definitely be added for a real program. First, the maximum token amount is U64_MAX which is higher than javascript's number value. Hence, you need to find a way to handle this, either by limiting the allowed amount of tokens that can be put in or by accepting the token amount as a string and then using a library like `bn.js` to convert the string. Secondly, you should never have your users put in a private key. Use an external wallet like `solong` or the `sol-wallet-adapter` library. You'd create the transaction, add the instructions, and then ask whatever trusted service you're using to sign the transaction and send it back to you. You can then add the other two keypair accounts and send off the tx to the network.
 
 ::: theory-recap
-<li>There can be several <i>instructions</i> (ix) inside one <i>transaction</i> (tx) in Solana. These instructions are executed out <i>synchronously</i> and the tx as a whole is executed <i>atomically</i></li>
-<li>The system program is responsible for allocating account space and assigning (internal - not user space) account ownership</li>
-<li>Instructions may depend on previous instructions inside the same transaction</li>
-<li>Commitment settings give downstream developers ways to query the network which differ in finality likelihood</li>
+- There can be several _instructions_ (ix) inside one _transaction_ (tx) in Solana. These instructions are executed out _synchronously_ and the tx as a whole is executed _atomically_
+- The system program is responsible for allocating account space and assigning (internal - not user space) account ownership
+- Instructions may depend on previous instructions inside the same transaction
+- Commitment settings give downstream developers ways to query the network which differ in finality likelihood
 :::
 
 ## Building the escrow program - Bob's Transaction
