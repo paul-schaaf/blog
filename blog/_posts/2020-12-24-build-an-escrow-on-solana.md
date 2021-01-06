@@ -12,7 +12,7 @@ tags:
 :::
 
 ## Intro & Motivation
-This guide is meant to serve as an intro to coding on [Solana](https://www.solana.com),
+This guide is meant to serve as an intro to coding on the [Solana](https://www.solana.com) Blockchain,
 using an escrow program as an example. We'll go through the code together, building the escrow program step by step. I've also created a UI you will be able to use to try out your program. Additionally, you'll get to play with the (shameless plug) [spl-token-ui](https://www.spl-token-ui.com).
 
 Most of the info in this blog post can be found somewhere in the docs or in example programs. Having said this, I have not found a guide that both walks through most of the coding theory step by step and applies it in practice. I hope this post achieves this, interweaving the theory and practice of solana programs. It requires no previous knowledge of Solana. While this is not a Rust tutorial, I will link to the [Rust docs](https://doc.rust-lang.org/book) whenever I introduce a new concept.
@@ -50,16 +50,16 @@ Imagine Alice has an asset _A_ and Bob has an asset _B_. They would like to trad
 
 The traditional way to solve this problem is to introduce a third party _C_ which both _A_ and _B_ trust. _A_ or _B_ can now go first and send their asset to _C_. _C_ then waits for the other party to send their asset and only then does _C_ release both assets.
 
-The blockchain way is to replace the trusted third party _C_ with code on a blockchain, specifically a smart contract that verifiably acts the same way a trusted third party would. A smart contract is superior to a trusted third party because of a number of reasons e.g. can you be sure that the trusted third party isn't colluding with the person on the other side of the trade? You can be with a smart contract, because you can look at the code before running it.
+The blockchain way is to replace the trusted third party _C_ with code on a blockchain, specifically a smart contract that verifiably acts the same way a trusted third party would. A smart contract is superior to a trusted third party because of a number of reasons e.g. can you be sure that the trusted third party isn't colluding with the person on the other side of the trade? You can be sure with a smart contract because you can look at the code before running it.
 
 I'll end this background section here. The internet already has a lot of material on escrows on blockchains. Let's now look at how to build such an escrow on Solana.
 
 ## Building the escrow program - Alice's Transaction
 
 ### Setting up the project
-Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools. You need at least version `1.5.0`. (There are currently no `1.5.0` binaries for mac. Follow the "build from source" section and add installed the bins to path. The `solana-install init` step is unnecessary and does not work, ignore it. If it doesn't build cause a command cannot be found, try installing [_coreutils_](https://formulae.brew.sh/formula/coreutils) and [_binutils_](https://formulae.brew.sh/formula/binutils) with homebrew)
+Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools. You need at least version `1.5.0`. (If you're on mac and there are no binaries for the version you want, follow the "build from source" section and add installed the bins to path. The `solana-install init` step is unnecessary and does not work, ignore it. If it doesn't build cause a command cannot be found, try installing [_coreutils_](https://formulae.brew.sh/formula/coreutils) and [_binutils_](https://formulae.brew.sh/formula/binutils) with homebrew)
 
-If you don't know how to test solana programs yet, remove all the testing code. Testing programs is a topic for another blog post. Remove the testing code in `entrypoint.rs` as well as the `tests` folder next to `src`. Lastly, remove the testing dependencies from [`Cargo.toml`](https://doc.rust-lang.org/book/ch01-03-hello-cargo.html?highlight=cargo#creating-a-project-with-cargo). It should now look like this:
+If you don't know how to test solana programs yet, remove all the testing code. Testing programs is a topic for another blog post. Remove the testing code in `lib.rs` as well as the `tests` folder next to `src`. Lastly, remove the testing dependencies from [`Cargo.toml`](https://doc.rust-lang.org/book/ch01-03-hello-cargo.html?highlight=cargo#creating-a-project-with-cargo). It should now look like this:
 
 ```toml
 [package]
@@ -77,7 +77,7 @@ crate-type = ["cdylib", "lib"]
 ```
 
 ### entrypoint.rs, programs, and accounts
-Have a look into `lib.rs`. First, the required crates are brought into scope using [use](https://doc.rust-lang.org/stable/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html). Then we use the `entrypoint!` [macro](https://doc.rust-lang.org/stable/book/ch19-06-macros.html) to declare the `process_instruction` function the [entrypoint](https://docs.solana.com/developing/deployed-programs/developing-rust#program-entrypoint) to the program. Entrypoints are the only way to call a program; all calls go through the function declared as the entrypoint.
+Have a look into `lib.rs`. First, the required [crates](https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html) are brought into scope using [use](https://doc.rust-lang.org/stable/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html). Then we use the `entrypoint!` [macro](https://doc.rust-lang.org/stable/book/ch19-06-macros.html) to declare the `process_instruction` function the [entrypoint](https://docs.solana.com/developing/deployed-programs/developing-rust#program-entrypoint) to the program. Entrypoints are the only way to call a program; all calls go through the function declared as the entrypoint.
 
 > When called, a program is passed to its [BPF Loader]((https://docs.solana.com/developing/builtins/programs#bpf-loader)) which processes the call. Different BPF loaders may require different entrypoints.
 
@@ -85,12 +85,12 @@ The reason for the existence of multiple BPF Loaders is that it itself is a prog
 
 > Solana programs are stateless
 
-If you want to store state, use [accounts](https://docs.solana.com/developing/programming-model/accounts). Programs themselves are stored in accounts which are marked `executable`. Each account can hold data and SOL.
+If you want to store state, use [accounts](https://docs.solana.com/developing/programming-model/accounts). Programs themselves are stored in accounts which are marked `executable`. Each account can hold data and [SOL](https://docs.solana.com/terminology#sol).
 Each account also has an `owner` and only the owner may debit the account and adjust its data. Crediting may be done by anyone. Here's an example of an [account](https://explorer.solana.com/address/6TkKqq15wXjqEjNg9zqTKADwuVATR9dW3rkNnsYme1ea). As you can see in the example account, it has its owner field set to the `System Program`. As a matter of fact,
 
 > Accounts can only be owned by programs
 
-Now you might be thinking "does that mean that my own SOL account is actually not owned by myself?". And you'd be right! But fear not, your funds are safu. The way it works is that even basic SOL transactions are handled by a program on Solana: the `system program`. (As a matter of fact, even programs are owned by programs. Remember, they are stored in accounts and these `executable` accounts are owned by the BPF Loader. The only programs not owned by the BPF loader are - of course - the BPF loader itself and the System Program. They are owned by the NativeLoader and have special privileges such as allocating memory or marking accounts as executable)
+Now you might be thinking "does that mean that my own SOL account is actually not owned by myself?". And you'd be right! But fear not, your funds are [safu](https://www.urbandictionary.com/define.php?term=Safu). The way it works is that even basic SOL transactions are handled by a program on Solana: the `system program`. (As a matter of fact, even programs are owned by programs. Remember, they are stored in accounts and these `executable` accounts are owned by the BPF Loader. The only programs not owned by the BPF loader are - of course - the BPF loader itself and the System Program. They are owned by the NativeLoader and have special privileges such as allocating memory or marking accounts as executable)
 
 <div class="zoom-image">
 
@@ -165,7 +165,7 @@ While there is only one entrypoint, program execution can follow different paths
 Let's now look at the different execution paths our program may take by zooming out and sketching the program flow for our escrow program.
 
 Remember we have two parties _Alice_ and _Bob_ which means there are two `system_program` accounts. Because _Alice_ and _Bob_ want to transfer tokens,
-we'll make use of - you guessed it! - the `token program`. To hold a token, you need a token account. Both _Alice_ and _Bob_ need an account for each token (which we'll call X and Y), so we get 4 more accounts. Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data. Note that this account is created for each exchange. For now, our world looks like this:
+we'll make use of - you guessed it! - the `token program`. In the token program, to hold a token, you need a token account. Both _Alice_ and _Bob_ need an account for each token (which we'll call X and Y), so we get 4 more accounts. Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data. Note that this account is created for each exchange. For now, our world looks like this:
 
 <div class="zoom-image">
 
@@ -184,7 +184,7 @@ The naive way one might connect Alice's main account to her token accounts is by
 of the token account. Clearly, this would not be sustainable if Alice owned many tokens because that would require her to keep a private key for each token account.
 
 It would be much easier for Alice if she just had one private key for all her token accounts and this is exactly how the token program does it!
-It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. This new token owner attribute is something the token program declares in user space. It's encoded inside a token account's `data`, in addition to other properties such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx with the private key of their main account.
+It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. This new token owner attribute is something the token program declares in user space (i.e. in the program they are building). It's encoded inside a token account's `data`, in addition to other properties such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx with the private key of their main account.
 
 > All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information
 
@@ -385,11 +385,12 @@ pub enum EscrowError {
 }
 ```
 
-What we are doing here is [defining an error type](https://doc.rust-lang.org/rust-by-example/error/multiple_error_types/define_error_type.html). Instead of having to write the `fmt::Display` implementation ourselves as is done in the example the link points to, we use the handy [thiserror](https://docs.rs/thiserror/1.0.22/thiserror/) library that does it for us using the `#[error("..")]` notation. This will become especially useful when we add more errors later on.
+What we are doing here is [defining an error type](https://doc.rust-lang.org/rust-by-example/error/multiple_error_types/define_error_type.html). Instead of having to write the `fmt::Display` implementation ourselves as is done in the example the link points to, we use the handy [thiserror](https://docs.rs/thiserror/1.0.22/thiserror/) library that does it for us using the [`#[error("..")]`](https://doc.rust-lang.org/book/ch19-06-macros.html?highlight=derive#how-to-write-a-custom-derive-macro) notation. This will become especially useful when we add more errors later on.
 
-Looking back into `instruction.rs`, we can see that we are not quite done. The compiler is telling us it has no way of turning an EscrowError into a ProgramError. So let's implement a way.
+Looking back into `instruction.rs`, we can see that we are not quite done. The compiler is telling us it has no way of turning an EscrowError into a ProgramError ("the trait `std::convert::From<error::EscrowError>` is not implemented for `solana_program::program_error::ProgramError`"). So let's implement a way.
 
-``` rust{3,12-16}
+``` rust{4,13-17}
+// inside error.rs
 use thiserror::Error;
 
 use solana_program::program_error::ProgramError;
