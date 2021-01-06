@@ -30,8 +30,7 @@ and at the end of each section summarized like this:
 
 At the end of the post, there is a big recap which is simply all previous recaps combined in one place.
 
-I do not claim to explain _all_ topics but hope this will be a solid starting point from which the reader can explore Solana further.
-
+I do not claim to explain _all_ topics but hope this will be a solid starting point from which the reader can explore Solana further. If you're new to Solana and Rust and want to finish this post without breaks and leave with a solid understanding of all concepts discussed and links mentioned I recommend allocating an entire day to the post. 
 
 ## The Final Product
 
@@ -351,7 +350,7 @@ impl EscrowInstruction {
 }
 ```
 
-`unpack` expects a [reference](https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html) to a slice of `u8`. It looks at the first byte (=`tag`) to determine how to decode (using )) the rest (=`rest`) of the slice. For now, we'll leave it at one instruction (ignoring the instruction where Bob takes the trade). `unpack_amount` decodes the `rest` to get a `u64` representing the `amount`. You can look up the individual functions yourself. What's most important for now is that you understand what is going on at a high level in the unpack function: 1. choose which instruction to build 2. build an return that instruction.
+`unpack` expects a [reference](https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html) to a slice of `u8`. It looks at the first byte (=`tag`) to determine how to decode (using [`match`](https://doc.rust-lang.org/rust-by-example/flow_control/match.html)) the rest (=`rest`) of the slice. For now, we'll leave it at one instruction (ignoring the instruction where Bob takes the trade). `unpack_amount` decodes the `rest` to get a `u64` representing the `amount`. You can look up the individual functions yourself. What's most important for now is that you understand what is going on at a high level in the unpack function: 1. choose which instruction to build 2. build and return that instruction.
 
 This won't compile because we are using an undefined error. Let's add that error next.
 
