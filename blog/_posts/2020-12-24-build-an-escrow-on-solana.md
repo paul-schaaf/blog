@@ -566,7 +566,17 @@ Now we see the [`Rent`](https://docs.solana.com/implemented-proposals/rent) sysv
 
 Most of the time, you want your accounts to be rent-exempt, cause once their balance goes to zero, they _disappear_. More on this at the end of Bob's transaction.
 
-Also, make sure to add the new error variant inside `error.rs`.
+Also, make sure to add the new error variant inside `error.rs` and adjust the use statement:
+
+From
+``` rust
+use crate::instruction::EscrowInstruction;
+```
+
+To
+``` rust
+use crate::{instruction::EscrowInstruction, error::EscrowError};
+```
 
 Another unfamiliar thing is happening here. For the first time, we are accessing the `data` field. Because `data` is also just an array of `u8`, we need to deserialize it with `Escrow::unpack_unchecked`. This is a function inside `state.rs` which we'll create in the next section.
 
@@ -707,11 +717,11 @@ With `state.rs` done, let's go back to the `processor.rs` and adjust one of our 
  
 From
 ``` rust
-use crate::instruction::EscrowInstruction;
+use crate::{instruction::EscrowInstruction, error::EscrowError};
 ``` 
 to 
 ``` rust
-use crate::{instruction::EscrowInstruction, state::Escrow};
+use crate::{instruction::EscrowInstruction, error::EscrowError, state::Escrow};
 ```
 
 ### Processor Part 2, PDAs Part 2, CPIs Part 1
