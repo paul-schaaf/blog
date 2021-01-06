@@ -179,7 +179,7 @@ To find answers to these questions, we must briefly jump into the `token program
 
 #### token ownership
 
-The naive way one might connect Alice's main account to her token accounts is by not connecting them at all. Whenever she wanted transfer a token, she'd use the private key
+The naive way one might connect Alice's main account to her token accounts is by not connecting them at all. Whenever she wanted to transfer a token, she'd use the private key
 of the token account. Clearly, this would not be sustainable if Alice owned many tokens because that would require her to keep a private key for each token account.
 
 It would be much easier for Alice if she just had one private key for all her token accounts and this is exactly how the token program does it!
@@ -562,7 +562,7 @@ Ok(())
 ```
 Now we see the [`Rent`](https://docs.solana.com/implemented-proposals/rent) sysvar in action. Let me explain:
 
-> Rent is deducted from an account's balance according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming
+> Rent is deducted from an account's balance according to their space requirements (i.e. the space an account and its fields take up in memory) regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming
 
 Most of the time, you want your accounts to be rent-exempt, cause once their balance goes to zero, they _disappear_. More on this at the end of Bob's transaction.
 
