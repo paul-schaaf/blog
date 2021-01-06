@@ -611,6 +611,7 @@ We need to save `initializer_temp_token_account_pubkey` so that when Bob takes t
 We use `is_initialized` to determine whether a given escrow account is already in use. This, serialization, and deserialization are all standardized in the [traits](https://doc.rust-lang.org/book/ch10-02-traits.html) of the [`program pack` module](https://docs.rs/solana-program/1.5.0/solana_program/program_pack/index.html). First, implement `Sealed` and `IsInitialized`. 
 
 ``` rust
+// inside state.rs
 use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
@@ -626,7 +627,7 @@ impl IsInitialized for Escrow {
 ```
 
 `Sealed` is just Solana's version of Rust's `Sized` trait although there does not seem to be any difference between the two.
-Now, `Pack`, which relies on `Sealed` and in our case also on `IsInitialized` being implemented. It's a big but simple blog of code. I'll split it into 2 parts. Let's start with the first one (you can copy and replace the `use` imports again):
+Now, `Pack`, which relies on `Sealed` and in our case also on `IsInitialized` being implemented. It's a big but simple block of code. I'll split it into 2 parts. Let's start with the first one (you can copy and replace the `use` imports again):
 
 ``` rust
 use solana_program::{
