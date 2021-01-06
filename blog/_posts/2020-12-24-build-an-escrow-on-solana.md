@@ -108,7 +108,7 @@ We'll get to how a program can check whether a transaction has been signed and h
 
 This allows the runtime to parallelise transactions. If the runtime knows all the accounts that will be written to and read by everyone at all times it can run those transactions in parallel that do not touch the same accounts or touch the same accounts but only read and don't write. If a transaction violates this constraint and reads or writes to an account of which the runtime has not been notified, the transaction will fail.
 
-Now, to finally conclude this section, create a new `entrypoint.rs` file next to `lib.rs` and move the `lib.rs` code there. Finally, register the entrypoint module inside `lib.rs`.
+Now, to finally conclude this section, create a new `entrypoint.rs` file next to `lib.rs` and move the `lib.rs` code there. Finally, register the entrypoint module inside `lib.rs`. **You will have to do this for all files we create**.
 
 ``` rust
 // inside lib.rs, only the following line should be in here
@@ -129,7 +129,6 @@ pub mod entrypoint;
 
 Next, create a file `instruction.rs` next to the other two and register it inside `lib.rs` like you did with the entrypoint. To understand the new file's purpose, let's look at a common way to structure a program's code and the way
 we will structure our program as well.
-
 
 ```
 .
@@ -409,7 +408,9 @@ impl From<EscrowError> for ProgramError {
 }
 ```
 
-Let's stop for a moment to understand what is happening here. We are implementing a _generic trait_, specifically the [`From`](https://doc.rust-lang.org/std/convert/trait.From.html) trait which the `?` operator wants to call. To implement this trait we have to implement the `from` function which carries out the conversion. The `ProgramError` enum provides the `Custom` variant that allows us to convert from our program's `EscrowError` to a `ProgramError`.
+Let's stop for a moment to understand what is happening here. We are implementing a _generic trait_, specifically the [`From`](https://doc.rust-lang.org/std/convert/trait.From.html) trait which the `?` operator wants to use. To implement this trait we have to implement the `from` function which carries out the conversion. The `ProgramError` enum provides the `Custom` variant that allows us to convert from our program's `EscrowError` to a `ProgramError`.
+
+The reason we do this conversion in the first place is that the entrypoint returns a `Result` of either nothing or a `ProgramError`.
 
 ### processor.rs Part 1, Rent Part 1, starting to process the InitEscrow instruction
 
