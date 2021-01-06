@@ -776,10 +776,11 @@ For now, let's look at how we can transfer the (user space) ownership of the tem
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
-    msg,
     program_error::ProgramError,
-    program_pack::{IsInitialized, Pack},
+    msg,
     pubkey::Pubkey,
+    program_pack::{Pack, IsInitialized},
+    sysvar::{rent::Rent, Sysvar},
     program::invoke
 };
 // inside process_init_escrow

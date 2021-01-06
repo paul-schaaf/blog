@@ -3,7 +3,7 @@ module.exports = {
     title: 'paulx',
     theme: '@vuepress/theme-blog',
     head: [
-      ['link', { rel: 'icon', href: '/logo.ico' }]
+      ['link', { rel: 'icon', href: '/favicon.ico' }]
     ],
     markdown: {
       lineNumbers: true
