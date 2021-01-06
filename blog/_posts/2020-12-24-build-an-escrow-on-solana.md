@@ -191,7 +191,7 @@ We can see all this when looking at a token account in the [explorer](https://ex
 
 You've probably noticed the `mint` field in the explorer. This is how we know which token the token account belongs to. For each token there is 1 mint account that holds the token's metadata such as the supply. We'll need this field later to verify that the token accounts Alice and Bob use really belong to asset X and Y and that neither party is sneaking in a wrong asset.
 
-With all this in mind, we can create populate our world with more information:
+With all this in mind, we can populate our world with more information:
 
 <div class="zoom-image">
 
