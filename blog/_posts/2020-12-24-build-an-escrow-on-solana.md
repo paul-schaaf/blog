@@ -459,7 +459,8 @@ use solana_program::{
 };
 ...
 impl Processor {
-    ...
+    pub fn process{...}
+    
     fn process_init_escrow(
         accounts: &[AccountInfo],
         amount: u64,
@@ -760,7 +761,7 @@ let (pda, _nonce) = Pubkey::find_program_address(&[b"escrow"], program_id);
 ```
 
 
-We create a PDA by passing in an array of seeds and the `program_id` into the `find_program_address` function. We get back a new `pda` and `nonce` with a 1/(2^255) chance the function fails ([2^255 is a BIG number](https://youtu.be/S9JGmA5_unY)). In our case the seeds can be static. There are cases such as in the [Associated Token Account program](https://github.com/solana-labs/solana-program-library/blob/596700b6b100902cde33db0f65ca123a6333fa58/associated-token-account/program/src/lib.rs#L24) where they aren't (cause different users should own different associated token accounts). We just need `1` PDA that can own `N` temporary token accounts for different escrows occuring at any and possibly the same point in time.
+We create a PDA by passing in an array of seeds and the `program_id` into the `find_program_address` function. We get back a new `pda` and `nonce` (you can ignore the nonce for now) with a 1/(2^255) chance the function fails ([2^255 is a BIG number](https://youtu.be/S9JGmA5_unY)). In our case the seeds can be static. There are cases such as in the [Associated Token Account program](https://github.com/solana-labs/solana-program-library/blob/596700b6b100902cde33db0f65ca123a6333fa58/associated-token-account/program/src/lib.rs#L24) where they aren't (cause different users should own different associated token accounts). We just need `1` PDA that can own `N` temporary token accounts for different escrows occuring at any and possibly the same point in time.
 
 Ok, but what _is_ a PDA? Normally, Solana key pairs use the [`ed25519`](http://ed25519.cr.yp.to/) standard. This means normal public keys lie on the `ed25519` elliptic curve. PDAs are public keys that are derived from the `program_id` and the seeds as well as _having been pushed off the curve by the nonce_. Hence,
 
@@ -782,7 +783,7 @@ use solana_program::{
     pubkey::Pubkey,
     program::invoke
 };
-/// inside process_init_escrow
+// inside process_init_escrow
 ...
 let token_program = next_account_info(account_info_iter)?;
 let owner_change_ix = spl_token::instruction::set_authority(
