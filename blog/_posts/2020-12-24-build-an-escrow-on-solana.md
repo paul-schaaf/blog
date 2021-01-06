@@ -630,6 +630,7 @@ impl IsInitialized for Escrow {
 Now, `Pack`, which relies on `Sealed` and in our case also on `IsInitialized` being implemented. It's a big but simple block of code. I'll split it into 2 parts. Let's start with the first one (you can copy and replace the `use` imports again):
 
 ``` rust
+// inside state.rs
 use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
     program_error::ProgramError,
@@ -767,7 +768,7 @@ Ok, but what _is_ a PDA? Normally, Solana key pairs use the [`ed25519`](http://e
 
 > Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
 
-They are just random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/1.5.0/src/solana_program/pubkey.rs.html#114)). We don't use the nonce here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
+A PDA is just a random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/1.5.0/src/solana_program/pubkey.rs.html#114)). We don't use the nonce here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
 
 #### CPIs Part 1
 
