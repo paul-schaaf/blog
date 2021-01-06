@@ -2,6 +2,9 @@
 module.exports = {
     title: 'paulx',
     theme: '@vuepress/theme-blog',
+    head: [
+      ['link', { rel: 'icon', href: '/logo.ico' }]
+    ],
     markdown: {
       lineNumbers: true
     },

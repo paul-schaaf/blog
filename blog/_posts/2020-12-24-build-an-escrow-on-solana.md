@@ -15,12 +15,14 @@ tags:
 This guide is meant to serve as an intro to coding on [Solana](https://www.solana.com),
 using an escrow program as an example. We'll go through the code together, building the escrow program step by step. I've also created a UI you will be able to use to try out your program. Additionally, you'll get to play with the (shameless plug) [spl-token-ui](https://www.spl-token-ui.com).
 
-> On Solana, smart contracts are called _programs_
-
 Most of the info in this blog post can be found somewhere in the docs or in example programs. Having said this, I have not found a guide that both walks through most of the coding theory step by step and applies it in practice. I hope this post achieves this, interweaving the theory and practice of solana programs. It requires no previous knowledge of Solana. While this is not a Rust tutorial, I will link to the [Rust docs](https://doc.rust-lang.org/book) whenever I introduce a new concept.
 I will also link to the relevant Solana docs although you don't have to read them to follow along.
 
-At the end of each section, important theory will be summarized like this:
+Important theory will be sprinkled into the post like this:
+
+> On Solana, smart contracts are called _programs_
+
+and at the end of each section summarized like this:
 
 ::: theory-recap
 - On Solana, smart contracts are called _programs_
@@ -55,7 +57,7 @@ I'll end this background section here. The internet already has a lot of materia
 ## Building the escrow program - Alice's Transaction
 
 ### Setting up the project
-Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools.
+Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools. You need at least version `1.5.0`. (There are currently no `1.5.0` binaries for mac. Follow the "build from source" section and add installed the bins to path. The `solana-install init` step is unnecessary and does not work, ignore it. If it doesn't build cause a command cannot be found, try installing [_coreutils_](https://formulae.brew.sh/formula/coreutils) and [_binutils_](https://formulae.brew.sh/formula/binutils) with homebrew)
 
 If you don't know how to test solana programs yet, remove all the testing code. Testing programs is a topic for another blog post. Remove the testing code in `entrypoint.rs` as well as the `tests` folder next to `src`. Lastly, remove the testing dependencies from [`Cargo.toml`](https://doc.rust-lang.org/book/ch01-03-hello-cargo.html?highlight=cargo#creating-a-project-with-cargo). It should now look like this:
 
@@ -405,6 +407,8 @@ impl From<EscrowError> for ProgramError {
     }
 }
 ```
+
+Let's stop for a moment to understand what is happening here. We are implementing a _generic trait_, specifically the [`From`](https://doc.rust-lang.org/std/convert/trait.From.html) trait which the `?` operator wants to call. To implement this trait we have to implement the `from` function which carries out the conversion. The `ProgramError` enum provides the `Custom` variant that allows us to convert from our program's `EscrowError` to a `ProgramError`.
 
 ### processor.rs Part 1, Rent Part 1, starting to process the InitEscrow instruction
 
@@ -831,14 +835,21 @@ Because we've built a part of the program that is complete in itself, we can now
 
 You can use this UI to try out your program. I explain how it works and what you need to do to make it work below. Feel free to build your own!
 
-<Escrow/>
+<iframe style="width:100%; height: 860px" frameborder="0" src="https://escrow-ui.netlify.app" title="Escrow - Alice's tx"></iframe>
 
 
-#### Deploying your program on devnet
-First, use the `cargo build-bpf` command to compile your program to a file with the `so` file extension. You should also create a personal account using the solana dev tools and airdrop some SOL into it _on devnet_. Then, use the `solana deploy` command to deploy the program to devnet. The Path will be printed by `cargo build-bpf`.
+#### Deploying your program on localnet
+First, use the `cargo build-bpf` command to compile your program to a file with the `so` file extension.
+
+[Create a cli wallet](https://docs.solana.com/wallet-guide/cli) of your choosing.
+
+Fire up your localnet with the command (that should now be in your PATH) `solana-test-validator`. When calling `solana config get`, your "RPC URL" should now equal `http://localhost:8899`.
+
+Then, use the `solana deploy` command to deploy the program to localnet. The path to the program will have been printed by `cargo build-bpf`.
+(:warning: you can only deploy the program locally for now because we are using functionality that is not enabled on any cluster yet)
 
 ``` shell
-solana deploy --url https://devnet.solana.com PATH_TO_YOUR_PROGRAM
+solana deploy PATH_TO_YOUR_PROGRAM
 ```
 
 The `deploy` command should print the program id which you can now paste into the UI above.
@@ -851,7 +862,7 @@ After creating the wallet, airdrop yourself some SOL to pay for the tx fees. The
 
 Use your throwaway wallet for the next steps as well. It will represent Alice.
 
-#### Creating tokens for testing on devnet
+#### Creating tokens for testing on localnet
 
 You'll also need a token to put into the escrow so head over to the [SPL Token UI](https://www.spl-token-ui.com).
 
@@ -1222,9 +1233,15 @@ And that's it! That's the program. Well done!
 
 ### Trying out the program, understanding Bob's transaction
 
-We can now try out the entire program. For this, I've copied Alice's UI below and added another for Bob's side.
+We can now try out the entire program. For this I've copied Alice's UI below so you don't have to scroll up and added another for Bob's side.
 
-You'll need to build and deploy the updated program. Also, for a realistic test, open another _incognito_ browser window and create a new wallet again. You can reuse the two token mint accounts you created a while ago. Create two new token accounts to hold Bob's X and Y tokens. Now you can create a new escrow as Alice and accept the trade as Bob.
+**Alice's UI**
+<iframe style="width:100%; height: 860px" frameborder="0" src="https://escrow-ui.netlify.app" title="Escrow - Alice's tx"></iframe>
+
+**Bob's UI**
+<iframe style="width:100%; height: 460px" frameborder="0" src="https://escrow-ui.netlify.app/#/bob" title="Escrow - Bob's tx"></iframe>
+
+You'll need to build and deploy the updated program (This also means you cannot use the escrow account you created a while ago because it is owned by the outdated version of the program). Also, for a realistic test, create another account in sollet that acts as Bob. You can reuse the two token mint accounts you created a while ago. Create two new token accounts to hold Bob's X and Y tokens. Now you can create a new escrow as Alice and accept the trade as Bob. 
 
 ## Q & A
 
@@ -1248,6 +1265,8 @@ Here are some ideas to improve the user experience
 add rent exemption check to program
 
 clarify token mint jargon
+
+check whether program returns the correct error codes
 
 ## Further reading
 
