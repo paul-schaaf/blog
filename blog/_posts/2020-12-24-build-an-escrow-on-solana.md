@@ -231,7 +231,7 @@ We'd like some way for the program to own the X tokens while the escrow is open 
 
 </div>
 
-The trick is to assign token account ownership to a _Program Derived Address_ of the escrow program. For now, it is enough for you to know this address exists and we can use it to let a program sign transactions or assign it user space ownership of accounts. We will cover PDAs in depth later but for now let's go back to coding!
+The trick is to assign token account ownership to a _Program Derived Address_ (PDA) of the escrow program. For now, it is enough for you to know this address exists and we can use it to let a program sign transactions or assign it user space ownership of accounts. We will cover PDAs in depth later but for now let's go back to coding!
 
 ### instruction.rs Part 2
 
