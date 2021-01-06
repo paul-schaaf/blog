@@ -30,8 +30,7 @@ and at the end of each section summarized like this:
 
 At the end of the post, there is a big recap which is simply all previous recaps combined in one place.
 
-I do not claim to explain _all_ topics but hope this will be a solid starting point from which the reader can explore Solana further.
-
+I do not claim to explain _all_ topics but hope this will be a solid starting point from which the reader can explore Solana further. If you're new to Solana and Rust and want to finish this post without breaks and leave with a solid understanding of all concepts discussed and links mentioned I recommend allocating an entire day to the post. 
 
 ## The Final Product
 
@@ -179,11 +178,11 @@ To find answers to these questions, we must briefly jump into the `token program
 
 #### token ownership
 
-The naive way one might connect Alice's main account to her token accounts is by not connecting them at all. Whenever she wanted transfer a token, she'd use the private key
+The naive way one might connect Alice's main account to her token accounts is by not connecting them at all. Whenever she wanted to transfer a token, she'd use the private key
 of the token account. Clearly, this would not be sustainable if Alice owned many tokens because that would require her to keep a private key for each token account.
 
 It would be much easier for Alice if she just had one private key for all her token accounts and this is exactly how the token program does it!
-It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. This new token owner attribute is something the token program declares in user space (i.e. in the program they are building). It's encoded inside a token account's `data`, in addition to other properties such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx with the private key of their main account.
+It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. This new token owner attribute is something the token program declares in user space (i.e. in the program they are building). It's encoded inside a token account's `data`, in addition to other properties such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx (tx=transaction) with the private key of their main account.
 
 > All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information
 
@@ -191,7 +190,7 @@ We can see all this when looking at a token account in the [explorer](https://ex
 
 You've probably noticed the `mint` field in the explorer. This is how we know which token the token account belongs to. For each token there is 1 mint account that holds the token's metadata such as the supply. We'll need this field later to verify that the token accounts Alice and Bob use really belong to asset X and Y and that neither party is sneaking in a wrong asset.
 
-With all this in mind, we can create populate our world with more information:
+With all this in mind, we can populate our world with more information:
 
 <div class="zoom-image">
 
@@ -351,7 +350,7 @@ impl EscrowInstruction {
 }
 ```
 
-`unpack` expects a [reference](https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html) to a slice of `u8`. It looks at the first byte (=`tag`) to determine how to decode (using )) the rest (=`rest`) of the slice. For now, we'll leave it at one instruction (ignoring the instruction where Bob takes the trade). `unpack_amount` decodes the `rest` to get a `u64` representing the `amount`. You can look up the individual functions yourself. What's most important for now is that you understand what is going on at a high level in the unpack function: 1. choose which instruction to build 2. build an return that instruction.
+`unpack` expects a [reference](https://doc.rust-lang.org/stable/book/ch04-02-references-and-borrowing.html) to a slice of `u8`. It looks at the first byte (=`tag`) to determine how to decode (using [`match`](https://doc.rust-lang.org/rust-by-example/flow_control/match.html)) the rest (=`rest`) of the slice. For now, we'll leave it at one instruction (ignoring the instruction where Bob takes the trade). `unpack_amount` decodes the `rest` to get a `u64` representing the `amount`. You can look up the individual functions yourself. What's most important for now is that you understand what is going on at a high level in the unpack function: 1. choose which instruction to build 2. build and return that instruction.
 
 This won't compile because we are using an undefined error. Let's add that error next.
 
@@ -563,7 +562,7 @@ Ok(())
 ```
 Now we see the [`Rent`](https://docs.solana.com/implemented-proposals/rent) sysvar in action. Let me explain:
 
-> Rent is deducted from an account's balance according to their space requirements regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming
+> Rent is deducted from an account's balance according to their space requirements (i.e. the space an account and its fields take up in memory) regularly. An account can, however, be made rent-exempt if its balance is higher than some threshold that depends on the space it's consuming
 
 Most of the time, you want your accounts to be rent-exempt, cause once their balance goes to zero, they _disappear_. More on this at the end of Bob's transaction.
 
@@ -666,7 +665,7 @@ impl Pack for Escrow {
 }
 ```
 
-The first requirement for something implementing `Pack` is defining `LEN` which is the size of our type. Looking at our Escrow struct, we can see calculate the length of the struct by adding the sizes of the individual data types: `1 (bool) + 3 * 32 (Pubkey) + 1 * 8 (u64) = 105`.  It's okay to use an entire `u8` for the bool since it'll make our coding easier and the cost of those extra wasted bits is infinitesimal.
+The first requirement for something implementing `Pack` is defining `LEN` which is the size of our type. Looking at our Escrow struct, we can see how to calculate the length of the struct by adding the sizes of the individual data types: `1 (bool) + 3 * 32 (Pubkey) + 1 * 8 (u64) = 105`.  It's okay to use an entire `u8` for the bool since it'll make our coding easier and the cost of those extra wasted bits is infinitesimal.
 
 After defining the escrow's length, we implement `unpack_from_slice` which turns an array of `u8` into an instance of the Escrow struct we defined above. Nothing too interesting happens here. Notable here is the use of [arrayref](https://docs.rs/arrayref/0.3.6/arrayref/), a library for getting references to sections of a slice. The docs should be enough to understand the (just 4) different functions from the library. Make sure to add the library to `Cargo.toml`.
 
@@ -739,8 +738,8 @@ if escrow_info.is_initialized() {
 
 escrow_info.is_initialized = true;
 escrow_info.initializer_pubkey = *initializer.key;
-escrow_info.sending_token_account_pubkey = *temp_token_account.key;
-escrow_info.receiving_token_account_pubkey = *received_token_account.key;
+escrow_info.initializer_temp_token_account_pubkey = *temp_token_account.key;
+escrow_info.initializer_receiving_token_account_pubkey = *received_token_account.key;
 escrow_info.expected_amount = amount;
 
 Escrow::pack(escrow_info, &mut escrow_account.data.borrow_mut())?;
