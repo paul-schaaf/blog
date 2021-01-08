@@ -250,8 +250,8 @@ pub enum EscrowInstruction {
     /// 1. `[writable]` Temporary token account that should be created prior to this instruction and owned by the initializer
     /// 2. `[]` The initializer's token account for the token they will receive should the trade go through
     /// 3. `[writable]` The escrow account, it will hold all necessary info about the trade.
-    /// 4. `[]` The token program
-    /// 5. `[]` The rent sysvar
+    /// 4. `[]` The rent sysvar
+    /// 5. `[]` The token program
     InitEscrow {
         /// The amount party A expects to receive of token Y
         amount: u64
@@ -280,13 +280,13 @@ Account 2 is Alice's token Y account. While it will be written to eventually, it
 ```
 Account 3 is the escrow account which also needs to be writable because the program will write the escrow information into it
 ```
-4. `[]` The token program
+4. `[]` The rent sysvar
 ```
-Account 4 is the account of the token program itself. I will explain why we need this account when we get to writing the `processor` code
+Account 4 is the `Rent` sysvar. I'll explain this in detail once we get to writing the `processor` code. What you should remember for now is that 
 ```
-5. `[]` The rent sysvar
+5. `[]` The token program
 ```
-Account 5 is the `Rent` sysvar. I'll explain this as well in detail once we get to writing the `processor` code. What you should remember for now is that 
+Account 5 is the account of the token program itself. I will explain why we need this account as well when we get to writing the `processor` code
 
 > Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars can be accessed through accounts and store parameters such as what the current fee or rent is
 
@@ -318,8 +318,8 @@ use crate::error::EscrowError::InvalidInstruction;
     /// 1. `[writable]` Temporary token account that should be created prior to this instruction and owned by the initializer
     /// 2. `[]` The initializer's token account for the token they will receive should the trade go through
     /// 3. `[writable]` The escrow account, it will hold all necessary info about the trade.
-    /// 4. `[]` The token program
-    /// 5. `[]` The rent sysvar
+    /// 4. `[]` The rent sysvar
+    /// 5. `[]` The token program
     InitEscrow {
         /// The amount party A expects to receive of token Y
         amount: u64
@@ -856,9 +856,9 @@ You can use this UI to try out your program. I explain how it works and what you
 #### Deploying your program on localnet
 First, use the `cargo build-bpf` command to compile your program to a file with the `so` file extension.
 
-[Create a cli wallet](https://docs.solana.com/wallet-guide/cli) of your choosing.
+Run `solana-keygen new` to create and save a solana keypair locally. (or [create a cli wallet](https://docs.solana.com/wallet-guide/cli) of your choosing.)
 
-Fire up your localnet with the command (that should now be in your PATH) `solana-test-validator`. When calling `solana config get`, your "RPC URL" should now equal `http://localhost:8899`.
+Fire up your localnet with the command (that should now be in your PATH) `solana-test-validator`. When calling `solana config get`, your "RPC URL" should now equal `http://localhost:8899`. If not, run `solana config set --url http://localhost:8899`. Running `solana balance` will show your balance which should NOT be 0. If it is, stop the validators, make sure you have created a key with `solana-keygen new` and start it again from genesis with `solana-test-validator -r`.
 
 Then, use the `solana deploy` command to deploy the program to localnet. The path to the program will have been printed by `cargo build-bpf`.
 (:warning: you can only deploy the program locally for now because we are using functionality that is not enabled on any cluster yet)
@@ -871,17 +871,19 @@ The `deploy` command should print the program id which you can now paste into th
 
 #### Creating a throwaway private key
 
-My UI requires a private key (NEVER DO THIS IN A REAL APP). An easy way to create a private key is to open an _incognito mode_ browser window and then to go to [sollet.io](https://www.sollet.io). Because we are in _incognito mode_, we can create a new wallet even if we had one in sollet already.
+My UI requires a private key (NEVER DO THIS IN A REAL APP). Go to [sollet.io](https://www.sollet.io) and create an entirely new account or a new account next to your main account. This account will represent Alice.
+
+Change the sollet cluster to localnet.
 
 After creating the wallet, airdrop yourself some SOL to pay for the tx fees. Then, click on `export` to export your Base58 encoded private key and paste it above.
 
-Use your throwaway wallet for the next steps as well. It will represent Alice.
+Use your throwaway wallet for the next steps as well.
 
 #### Creating tokens for testing on localnet
 
-You'll also need a token to put into the escrow so head over to the [SPL Token UI](https://www.spl-token-ui.com).
+You'll also need a token to put into the escrow so head over to the [SPL Token UI](https://www.spl-token-ui.com). Make sure you choose *localnet* here too.
 
-During the next steps, you will create 2 tokens X and Y and 2 token accounts, Alice's X and Alice's Y account. After each step, copy the account address and put it into the appropriate UI field. You could also write them down somewhere else so can reuse them when eventually testing the entire escrow, including Bob's transaction.
+During the next steps, you will create the token mint accounts for X and Y and 2 token accounts, Alice's X and Alice's Y account. After creating each token account (not the token mint account!), copy the account address and put it into the appropriate UI field. You could also write them down somewhere else so can reuse them when eventually testing the entire escrow, including Bob's transaction.
 
 Start by heading over to `Create new token` inside the `Tokens` tab. Fill out the mint authority with your sollet pubkey and create the new token. Keep in mind, this is the _token mint account_ for token X, i.e. the account that holds all the metadata of the token e.g. its supply and who is allowed to mint it (if you set the mint authority correctly, that should be your sollet pubkey! You can verify this in the explorer).
 
