@@ -969,11 +969,12 @@ After building the ix for creating the new account, we call two functions provid
 const initEscrowIx = new TransactionInstruction({
     programId: escrowProgramId,
     keys: [
-        { pubkey: feePayerAcc.publicKey, isSigner: true, isWritable: false },
+        { pubkey: aliceAccount.publicKey, isSigner: true, isWritable: false },
         { pubkey: tempTokenAccount.publicKey, isSigner: false, isWritable: true },
         { pubkey: new PublicKey(initializerReceivingTokenAccountPubkeyString), isSigner: false, isWritable: false },
         { pubkey: escrowAccount.publicKey, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false},
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ],
     data: Buffer.from(Uint8Array.of(0, ...new BN(expectedAmount).toArray("le", 8)))
 })
