@@ -188,6 +188,8 @@ It assigns each token account an owner. Note that this token account owner attri
 
 > All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information
 
+![](../images/2020-12-24/account.png)
+
 We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/FpYU4M8oH9pfUqzpff44gsGso96MUKW1G1tBZ9Kxcb7d?cluster=mainnet-beta). It parses the account's `data` property and displays its user space fields formatted properly.
 
 You've probably noticed the `mint` field in the explorer. This is how we know which token the token account belongs to. For each token there is 1 mint account that holds the token's metadata such as the supply. We'll need this field later to verify that the token accounts Alice and Bob use really belong to asset X and Y and that neither party is sneaking in a wrong asset.
@@ -1251,7 +1253,7 @@ And that's it! That's the program. Well done!
 - If an account has no balance left, it will be purged from memory by the runtime after the instruction (you can see this when going navigating to an account that has been closed in the explorer)
 :::
 
-### Trying out the program, understanding Bob's transaction
+### Trying out the program, understanding Bob's transaction in practice
 
 We can now try out the entire program. For this I've copied Alice's UI below so you don't have to scroll up and added another for Bob's side.
 
@@ -1262,6 +1264,34 @@ We can now try out the entire program. For this I've copied Alice's UI below so 
 <iframe style="width:100%; height: 460px" frameborder="0" src="https://escrow-ui.netlify.app/#/bob" title="Escrow - Bob's tx"></iframe>
 
 You'll need to build and deploy the updated program (This also means you cannot use the escrow account you created a while ago because it is owned by the outdated version of the program). Also, for a realistic test, create another account in sollet that acts as Bob. You can reuse the two token mint accounts you created a while ago. Create two new token accounts to hold Bob's X and Y tokens. Now you can create a new escrow as Alice and accept the trade as Bob. 
+
+#### understanding what just happened
+
+You can probably already tell what happened behind the scenes when you clicked "Take trade". The UI uses the escrow account pubkey to get the data from the escrow account, decodes it, and then uses the decoded data plus Bob's data to send the transaction. Here's the important code (without the decoding):
+
+``` ts
+const PDA = await PublicKey.findProgramAddress([Buffer.from("escrow")], programId);
+
+const exchangeInstruction = new TransactionInstruction({
+    programId,
+    data: Buffer.from(Uint8Array.of(1, ...new BN(bobExpectedXTokenAmount).toArray("le", 8))),
+    keys: [
+        { pubkey: bobAccount.publicKey, isSigner: true, isWritable: false },
+        { pubkey: bobYTokenAccountPubkey, isSigner: false, isWritable: true },
+        { pubkey: bobXTokenAccountPubkey, isSigner: false, isWritable: true },
+        { pubkey: escrowState.XTokenTempAccountPubkey, isSigner: false, isWritable: true},
+        { pubkey: escrowState.initializerAccountPubkey, isSigner: false, isWritable: true},
+        { pubkey: escrowState.initializerYTokenAccount, isSigner: false, isWritable: true},
+        { pubkey: escrowAccountPubkey, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false},
+        { pubkey: PDA[0], isSigner: false, isWritable: false}
+    ] 
+})
+
+await connection.sendTransaction(new Transaction().add(exchangeInstruction), [bobAccount]);
+```
+
+
 
 ## Q & A
 
@@ -1281,8 +1311,6 @@ Here are some ideas to improve the user experience
 - add a `Cancel` endpoint to the program. Currently, Alice's tokens are stuck in limbo and she will not be able to recover them if Bob decides not to take the trade. Add an endpoint that allows Alice to cancel the ongoing escrow, transferring the X tokens back to her and closing the two created accounts. 
 
 ## Theory recap
-
-add rent exemption check to program
 
 clarify token mint jargon
 
