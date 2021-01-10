@@ -1312,8 +1312,6 @@ Here are some ideas to improve the user experience
 
 ## Theory recap
 
-clarify token mint jargon
-
 check whether program returns the correct error codes
 
 ## Further reading
