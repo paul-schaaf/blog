@@ -1312,7 +1312,11 @@ Here are some ideas to improve the user experience
 
 ## Theory recap
 
+update published time
+
 check whether program returns the correct error codes
+
+add theory recap
 
 ## Further reading
 
