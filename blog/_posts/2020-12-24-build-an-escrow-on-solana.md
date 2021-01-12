@@ -1032,8 +1032,8 @@ Equipped with this knowledge, we can add the endpoint for what I've decided to c
 /// Accounts expected:
 ///
 /// 0. `[signer]` The account of the person taking the trade
-/// 1. `[writable]` The taker's token account for the token they will receive should the trade go through
-/// 2. `[writable]` The taker's token account for the token they send
+/// 1. `[writable]` The taker's token account for the token they send 
+/// 2. `[writable]` The taker's token account for the token they will receive should the trade go through
 /// 3. `[writable]` The PDA's temp token account to get tokens from and eventually close
 /// 4. `[writable]` The creator's main account to send their rent fees to
 /// 5. `[writable]` The creator's token account that will receive tokens
@@ -1116,7 +1116,7 @@ fn process_exchange(
     let creators_received_token_account = next_account_info(account_info_iter)?;
     let escrow_account = next_account_info(account_info_iter)?;
 
-    let mut escrow_info = Escrow::unpack(&escrow_account.data.borrow())?;
+    let escrow_info = Escrow::unpack(&escrow_account.data.borrow())?;
 
     if escrow_info.initializer_temp_token_account_pubkey != *pdas_temp_token_account.key {
         return Err(ProgramError::InvalidAccountData);
