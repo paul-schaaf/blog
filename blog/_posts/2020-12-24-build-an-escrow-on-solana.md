@@ -1154,7 +1154,7 @@ fn process_exchange(
 }
 ```
 
-Up to this point, there's really nothing new. We get the accounts and do some checks on them, verifying that Bob has actually passed in the correct accounts with the correct values and that the amount in the PDA's X token account is what Bob expects. We then use _signature extension_ to make the token transfer to Alice's Y token account on Bob's behalf. You can fix the compilation errors yourself now. Create the new error variant for the `ExpectedAmountMismatch` and pull the required modules into scope with `use`.
+Up to this point, there's really nothing new. We get the accounts and do some checks on them, verifying that Bob has actually passed in the correct accounts with the correct values and that the amount in the PDA's X token account is what Bob expects. We then use _signature extension_ to make the token transfer to Alice's Y token account on Bob's behalf. You can fix the compilation errors yourself now (You'll have to import the spl_token's account struct and [rename](https://doc.rust-lang.org/rust-by-example/mod/use.html) it to `TokenAccount`). Create the new error variant for the `ExpectedAmountMismatch` and pull the required modules into scope with `use`.
 
 The last parts of the `process_exchange` function include something new again:
 
@@ -1212,7 +1212,7 @@ Here we use the `invoke_signed` function to allow the PDA to sign something. Rec
 
 </div>
 
-The PDA isn't actually signing the CPI call in cryptographic fashion. In addition to the two arguments, the `invoke_signed` function takes a third one: the seeds that were used to create the PDA the CPI is supposed to be "signed" with. You might be surprised to find the nonce there because you didn't define it as a seed. Well, the nonce is the seed that the `find_program_address` function adds to make the address fall off the Ed25519 curve. Now, 
+The PDA isn't actually signing the CPI in cryptographic fashion. In addition to the two arguments, the `invoke_signed` function takes a third one: the seeds that were used to create the PDA the CPI is supposed to be "signed" with. You might be surprised to find the nonce there because you didn't define it as a seed. Well, the nonce is the seed that the `find_program_address` function adds to make the address fall off the Ed25519 curve. Now, 
 
 > when a program calls `invoke_signed`, the runtime uses those seeds and the program id of the calling program to recreate the PDA and if it matches one of the given accounts inside `invoke_signed`'s arguments, that account's `signed` property will be set to true
 
