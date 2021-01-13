@@ -30,6 +30,8 @@ and at the end of each section summarized like this:
 
 I do not claim to explain _all_ topics but hope this will be a solid starting point from which the reader can explore Solana further. If you're new to Solana and Rust and want to finish this post without breaks and leave with a solid understanding of all concepts discussed and links mentioned I recommend allocating an entire day to the post.
 
+If something is not working and you just cannot figure out why, have a look at the final code [here](https://github.com/paul-schaaf/solana-escrow).
+
 If you find mistakes or would like to give feedback, please do contact me on discord [paulx#9059](https://discord.com/invite/pquxPsq).
 
 ## The Final Product
