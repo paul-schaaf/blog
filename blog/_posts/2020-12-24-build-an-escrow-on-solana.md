@@ -28,8 +28,6 @@ and at the end of each section summarized like this:
 - On Solana, smart contracts are called _programs_
 :::
 
-At the end of the post, there is a big recap which is simply all previous recaps combined in one place.
-
 I do not claim to explain _all_ topics but hope this will be a solid starting point from which the reader can explore Solana further. If you're new to Solana and Rust and want to finish this post without breaks and leave with a solid understanding of all concepts discussed and links mentioned I recommend allocating an entire day to the post.
 
 If you find mistakes or would like to give feedback, please do contact me on discord [paulx#9059](https://discord.com/invite/pquxPsq).
@@ -58,7 +56,7 @@ I'll end this background section here. The internet already has a lot of materia
 ## Building the escrow program - Alice's Transaction
 
 ### Setting up the project
-Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. You'll also need [`Rust`](https://www.rust-lang.org/tools/install). Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools. You need at least version `1.5.0`. (If you're on mac and there are no binaries for the version you want, follow the "build from source" section and add installed the bins to path. The `solana-install init` step is unnecessary and does not work, ignore it. If it doesn't build because a command cannot be found, try installing [_coreutils_](https://formulae.brew.sh/formula/coreutils) and [_binutils_](https://formulae.brew.sh/formula/binutils) with homebrew).
+Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. You'll also need [`Rust`](https://www.rust-lang.org/tools/install). Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools. **You need at least version `1.5.2`**. (If you're on mac and there are no binaries for the version you want, follow the "build from source" section and add installed the bins to path. The `solana-install init` step is unnecessary and does not work, ignore it. If it doesn't build because a command cannot be found, try installing [_coreutils_](https://formulae.brew.sh/formula/coreutils) and [_binutils_](https://formulae.brew.sh/formula/binutils) with homebrew).
 
 If you don't know how to test solana programs yet, remove all the testing code. Testing programs is a topic for another blog post. Remove the testing code in `lib.rs` as well as the `tests` folder next to `src`. Lastly, remove the testing dependencies from [`Cargo.toml`](https://doc.rust-lang.org/book/ch01-03-hello-cargo.html?highlight=cargo#creating-a-project-with-cargo). It should now look like this:
 
@@ -1307,18 +1305,12 @@ This is a collection of questions (and their answers) that have been asked by re
 
 Here are some ideas to improve the user experience
 
-- build a better UI
+- build a better UI (could be prettier, could include functionality to view an escrow's state given its address)
 - add a `Cancel` endpoint to the program. Currently, Alice's tokens are stuck in limbo and she will not be able to recover them if Bob decides not to take the trade. Add an endpoint that allows Alice to cancel the ongoing escrow, transferring the X tokens back to her and closing the two created accounts. 
 
 ## Theory recap
 
 update published time
-
-check whether program returns the correct error codes
-
-add theory recap
-
-solana program at least 1.5.2
 
 ## Further reading
 
