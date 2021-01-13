@@ -1167,7 +1167,7 @@ let transfer_to_taker_ix = spl_token::instruction::transfer(
     pdas_temp_token_account.key,
     takers_received_token_account.key,
     &pda,
-    &[],
+    &[pda],
     pdas_temp_token_account_info.amount,
 )?;
 msg!("Calling the token program to transfer tokens to the taker...");
