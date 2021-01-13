@@ -1318,6 +1318,8 @@ check whether program returns the correct error codes
 
 add theory recap
 
+solana program at least 1.5.2
+
 ## Further reading
 
 - [The docs](https://docs.solana.com)
