@@ -41,7 +41,7 @@ An escrow smart contract is a good example to look at and build because it highl
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/escrow.gif)
+![](../images/2021-01-13/escrow.gif)
 
 </div>
 
@@ -93,7 +93,7 @@ Now you might be thinking "does that mean that my own SOL account is actually no
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/always-has-been.jpeg)
+![](../images/2021-01-13/always-has-been.jpeg)
 
 </div>
 
@@ -167,7 +167,7 @@ we'll make use of - you guessed it! - the `token program`. In the token program,
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/escrow-sketch-1.png)
+![](../images/2021-01-13/escrow-sketch-1.png)
 
 </div>
 
@@ -186,7 +186,7 @@ It assigns each token account an owner. Note that this token account owner attri
 
 > All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information
 
-![](../images/2020-12-24/account.png)
+![](../images/2021-01-13/account.png)
 
 We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/FpYU4M8oH9pfUqzpff44gsGso96MUKW1G1tBZ9Kxcb7d?cluster=mainnet-beta). It parses the account's `data` property and displays its user space fields formatted properly.
 
@@ -196,7 +196,7 @@ With all this in mind, we can populate our world with more information:
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/escrow-sketch-2.png)
+![](../images/2021-01-13/escrow-sketch-2.png)
 
 </div>
 
@@ -207,7 +207,7 @@ The only way to own units of a token is to own a token account that holds some t
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/escrow-sketch-3.png)
+![](../images/2021-01-13/escrow-sketch-3.png)
 
 </div>
 
@@ -228,7 +228,7 @@ We'd like some way for the program to own the X tokens while the escrow is open 
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/no_but_yes.jpg)
+![](../images/2021-01-13/no_but_yes.jpg)
 
 </div>
 
@@ -438,7 +438,7 @@ impl Processor {
         match instruction {
             EscrowInstruction::InitEscrow { amount } => {
                 msg!("Instruction: InitEscrow");
-                return Self::process_init_escrow(accounts, amount, program_id);
+                Self::process_init_escrow(accounts, amount, program_id);
             }
         };
     }
@@ -770,6 +770,12 @@ Ok, but what _is_ a PDA? Normally, Solana key pairs use the [`ed25519`](http://e
 
 > Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
 
+<div style="display: flex; justify-content: center" class="zoom-image">
+
+![](../images/2021-01-13/this_is_pda.jpg)
+
+</div>
+
 A PDA is just a random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/1.5.0/src/solana_program/pubkey.rs.html#114)). We don't use the nonce here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
 
 #### CPIs Part 1
@@ -1015,7 +1021,7 @@ To understand what Bob's transaction should do, let's have a look once again at 
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/escrow-alice-end.jpg)
+![](../images/2021-01-13/escrow-alice-end.jpg)
 
 </div>
 
@@ -1072,11 +1078,11 @@ The `process` function inside `processor.rs` will not compile now because a matc
 match instruction {
     EscrowInstruction::InitEscrow { amount } => {
         msg!("Instruction: InitEscrow");
-        return Self::process_init_escrow(accounts, amount, program_id);
+        Self::process_init_escrow(accounts, amount, program_id);
     },
     EscrowInstruction::Exchange { amount } => {
         msg!("Instruction: Exchange");
-        return Self::process_exchange(accounts, amount, program_id);
+        Self::process_exchange(accounts, amount, program_id);
     }
 };
 ```
@@ -1152,7 +1158,7 @@ fn process_exchange(
 }
 ```
 
-Up to this point, there's really nothing new. We get the accounts and do some checks on them, verifying that Bob has actually passed in the correct accounts with the correct values and that the amount in the PDA's X token account is what Bob expects. We then use _signature extension_ to make the token transfer to Alice's Y token account on Bob's behalf. You can fix the compilation errors yourself now (You'll have to import the spl_token's account struct and [rename](https://doc.rust-lang.org/rust-by-example/mod/use.html) it to `TokenAccount`). Create the new error variant for the `ExpectedAmountMismatch` and pull the required modules into scope with `use`.
+Up to this point, there's really nothing new. We get the accounts and do some checks on them, verifying that Bob has actually passed in the correct accounts with the correct values and that the amount in the PDA's X token account is what Bob expects. We then use _signature extension_ to make the token transfer to Alice's Y token account on Bob's behalf. You can fix the compilation errors yourself now (You'll have to import the spl_token's account struct and [rename](https://doc.rust-lang.org/rust-by-example/mod/use.html) it to `TokenAccount` and add another error). Create the new error variant for the `ExpectedAmountMismatch` and pull the required modules into scope with `use`.
 
 The last parts of the `process_exchange` function include something new again:
 
@@ -1165,7 +1171,7 @@ let transfer_to_taker_ix = spl_token::instruction::transfer(
     pdas_temp_token_account.key,
     takers_received_token_account.key,
     &pda,
-    &[pda],
+    &[&pda],
     pdas_temp_token_account_info.amount,
 )?;
 msg!("Calling the token program to transfer tokens to the taker...");
@@ -1206,7 +1212,7 @@ Here we use the `invoke_signed` function to allow the PDA to sign something. Rec
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/no_but_yes.jpg)
+![](../images/2021-01-13/no_but_yes.jpg)
 
 </div>
 
