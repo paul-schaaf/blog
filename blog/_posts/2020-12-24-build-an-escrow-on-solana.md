@@ -1,7 +1,7 @@
 ---
 title: "Programming on Solana - An Introduction"
 summary: Learn the fundamentals of Programming on Solana by building an escrow
-date: 2020-12-24
+date: 2021-01-13
 tags:
     - solana
     - blockchain
@@ -93,7 +93,7 @@ Now you might be thinking "does that mean that my own SOL account is actually no
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/2020-12-24-always-has-been.jpeg)
+![](../images/2020-12-24/always-has-been.jpeg)
 
 </div>
 
@@ -167,7 +167,7 @@ we'll make use of - you guessed it! - the `token program`. In the token program,
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/2020-12-24-escrow-sketch-1.png)
+![](../images/2020-12-24/escrow-sketch-1.png)
 
 </div>
 
@@ -196,7 +196,7 @@ With all this in mind, we can populate our world with more information:
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/2020-12-24-escrow-sketch-2.png)
+![](../images/2020-12-24/escrow-sketch-2.png)
 
 </div>
 
@@ -207,7 +207,7 @@ The only way to own units of a token is to own a token account that holds some t
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/2020-12-24-escrow-sketch-3.png)
+![](../images/2020-12-24/escrow-sketch-3.png)
 
 </div>
 
@@ -228,7 +228,7 @@ We'd like some way for the program to own the X tokens while the escrow is open 
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/2020-12-24_no_but_yes.jpg)
+![](../images/2020-12-24/no_but_yes.jpg)
 
 </div>
 
@@ -1206,7 +1206,7 @@ Here we use the `invoke_signed` function to allow the PDA to sign something. Rec
 
 <div class="zoom-image">
 
-![](../images/2020-12-24/2020-12-24_no_but_yes.jpg)
+![](../images/2020-12-24/no_but_yes.jpg)
 
 </div>
 
@@ -1288,12 +1288,9 @@ const exchangeInstruction = new TransactionInstruction({
 
 await connection.sendTransaction(new Transaction().add(exchangeInstruction), [bobAccount]);
 ```
-
-
-
 ## Q & A
 
-This is a collection of questions (and their answers) that have been asked by readers. Feel free to contact me and ask away!
+This is a collection of questions (and their answers) that have been asked by readers. Feel free to [contact me](https://discord.com/invite/pquxPsq) and ask away!
 
 ### Is there really a need for a temporary account for Alice's X tokens?
 
@@ -1307,11 +1304,6 @@ Here are some ideas to improve the user experience
 
 - build a better UI (could be prettier, could include functionality to view an escrow's state given its address)
 - add a `Cancel` endpoint to the program. Currently, Alice's tokens are stuck in limbo and she will not be able to recover them if Bob decides not to take the trade. Add an endpoint that allows Alice to cancel the ongoing escrow, transferring the X tokens back to her and closing the two created accounts. 
-
-## Theory recap
-
-update published time
-
 ## Further reading
 
 - [The docs](https://docs.solana.com)
