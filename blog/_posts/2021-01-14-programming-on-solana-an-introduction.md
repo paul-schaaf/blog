@@ -1,7 +1,7 @@
 ---
 title: "Programming on Solana - An Introduction"
 summary: Learn the fundamentals of Programming on Solana by building an escrow
-date: 2021-01-13
+date: 2021-01-14
 tags:
     - solana
     - blockchain
