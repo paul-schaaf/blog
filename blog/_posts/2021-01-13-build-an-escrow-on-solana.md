@@ -270,7 +270,7 @@ Let me explain why the endpoint looks like it does:
 ```
 0. `[signer]` The account of the person initializing the escrow
 ```
-We need Account 0 and specifically Account 0 as a signer because transferring the ownership of the temporary account requires Alice's signature.
+We need Account 0 and specifically Account 0 as a signer because transferring the ownership of the temporary account requires Alice's signature. I'll be referring to Alice as the _initializer_ and Bob as the _taker_ in the code (Alice inits the escrow, Bob takes the trade. Pls let me know if you can come up with better naming)
 ```
 1. `[writable]` Temporary token account that should be created prior to this instruction and owned by the initializer
 ```
@@ -501,8 +501,8 @@ fn process_init_escrow(
 
     let temp_token_account = next_account_info(account_info_iter)?;
 
-    let received_token_account = next_account_info(account_info_iter)?;
-    if *received_token_account.owner != spl_token::id() {
+    let token_to_receive_account = next_account_info(account_info_iter)?;
+    if *token_to_receive_account.owner != spl_token::id() {
         return Err(ProgramError::IncorrectProgramId);
     }
 
@@ -513,9 +513,9 @@ fn process_init_escrow(
 
 Next, add the highlighted lines. The temporary token account needs to be writable but there is no need to explicitly check this. The transaction will fail automatically should Alice not mark the account as writable.
 
-You might ask yourself, "why do we check that the `received_token_account` is actually owned by the token program but don't do the same for the `temp_token_account`?". The answer is that later on in the function we will ask the token program to transfer ownership of the `temp_token_account` to the _PDA_. This transfer will fail if the `temp_token_account` is not owned by the token program, because - as I'm sure you remember - only programs that own accounts may change accounts. Hence, there is no need for us to add another check here.
+You might ask yourself, "why do we check that the `token_to_receive_account` is actually owned by the token program but don't do the same for the `temp_token_account`?". The answer is that later on in the function we will ask the token program to transfer ownership of the `temp_token_account` to the _PDA_. This transfer will fail if the `temp_token_account` is not owned by the token program, because - as I'm sure you remember - only programs that own accounts may change accounts. Hence, there is no need for us to add another check here.
 
-We don't make any changes to the `received_token_account` though (inside Alice's transaction). We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because the token program will attempt to send the Y tokens to Alice but not be the owner of the `received_token_account`. That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
+We don't make any changes to the `token_to_receive_account` though (inside Alice's transaction). We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because the token program will attempt to send the Y tokens to Alice but not be the owner of the `token_to_receive_account`. That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
 
 Finally, I'm sure you have noticed that we are using a crate here which we have not registered inside `Cargo.toml` yet. Let's do that now.
 ``` toml{4}
@@ -544,8 +544,8 @@ use solana_program::{
 ...
 let temp_token_account = next_account_info(account_info_iter)?;
 
-let received_token_account = next_account_info(account_info_iter)?;
-if *received_token_account.owner != spl_token::id() {
+let token_to_receive_account = next_account_info(account_info_iter)?;
+if *token_to_receive_account.owner != spl_token::id() {
     return Err(ProgramError::IncorrectProgramId);
 }
 
@@ -600,17 +600,17 @@ use solana_program::pubkey::Pubkey;
 pub struct Escrow {
     pub is_initialized: bool,
     pub initializer_pubkey: Pubkey,
-    pub initializer_temp_token_account_pubkey: Pubkey,
-    pub initializer_receiving_token_account_pubkey: Pubkey,
+    pub temp_token_account_pubkey: Pubkey,
+    pub initializer_token_to_receive_account_pubkey: Pubkey,
     pub expected_amount: u64,
 }
 ```
 
-We need to save `initializer_temp_token_account_pubkey` so that when Bob takes the trade, the escrow program can send tokens from the account at `initializer_temp_token_account_pubkey` to Bob's account. We already know that Bob will have to pass in the account into his entrypoint call eventually so why do we save it here? First, if we save its public key here, Bob can easily find the address of the accounts he needs to pass into the entrypoint. Otherwise Alice would have to send him not only the escrow acount address but also all her account addresses. Secondly, and more important for security is that Bob could pass in a different token account. Nothing stops him from doing so if we don't add a check requiring him to pass in the account with `initializer_temp_token_account_pubkey` as its public key. And to add that check later in the processor, we need the InitEscrow instruction to save the `initializer_temp_token_account_pubkey`.
+We need to save `temp_token_account_pubkey` so that when Bob takes the trade, the escrow program can send tokens from the account at `temp_token_account_pubkey` to Bob's account. We already know that Bob will have to pass in the account into his entrypoint call eventually so why do we save it here? First, if we save its public key here, Bob can easily find the address of the accounts he needs to pass into the entrypoint. Otherwise Alice would have to send him not only the escrow acount address but also all her account addresses. Secondly, and more important for security is that Bob could pass in a different token account. Nothing stops him from doing so if we don't add a check requiring him to pass in the account with `temp_token_account_pubkey` as its public key. And to add that check later in the processor, we need the InitEscrow instruction to save the `temp_token_account_pubkey`.
 
 > When writing Solana programs, be mindful of the fact that any accounts may be passed into the entrypoint, including different ones than those defined in the API inside `instruction.rs`. It's the program's responsibility to check that `received accounts == expected accounts`
 
-`initializer_receiving_token_account_pubkey` needs to be saved so that when Bob takes the trade, his tokens can be sent to that account. `expected_amount` will be used to check that Bob sends enough of his token. That leaves `initializer_pubkey` and `is_initialized`. I'll explain the latter now and the former later on.
+`initializer_token_to_receive_account_pubkey` needs to be saved so that when Bob takes the trade, his tokens can be sent to that account. `expected_amount` will be used to check that Bob sends enough of his token. That leaves `initializer_pubkey` and `is_initialized`. I'll explain the latter now and the former later on.
 
 We use `is_initialized` to determine whether a given escrow account is already in use. This, serialization, and deserialization are all standardized in the [traits](https://doc.rust-lang.org/book/ch10-02-traits.html) of the [`program pack` module](https://docs.rs/solana-program/1.5.0/solana_program/program_pack/index.html). First, implement `Sealed` and `IsInitialized`. 
 
@@ -650,8 +650,8 @@ impl Pack for Escrow {
         let (
             is_initialized,
             initializer_pubkey,
-            initializer_temp_token_account_pubkey,
-            initializer_receiving_token_account_pubkey,
+            temp_token_account_pubkey,
+            initializer_token_to_receive_account_pubkey,
             expected_amount,
         ) = array_refs![src, 1, 32, 32, 32, 8];
         let is_initialized = match is_initialized {
@@ -663,8 +663,8 @@ impl Pack for Escrow {
         Ok(Escrow {
             is_initialized,
             initializer_pubkey: Pubkey::new_from_array(*initializer_pubkey),
-            initializer_temp_token_account_pubkey: Pubkey::new_from_array(*initializer_temp_token_account_pubkey),
-            initializer_receiving_token_account_pubkey: Pubkey::new_from_array(*initializer_receiving_token_account_pubkey),
+            temp_token_account_pubkey: Pubkey::new_from_array(*temp_token_account_pubkey),
+            initializer_token_to_receive_account_pubkey: Pubkey::new_from_array(*initializer_token_to_receive_account_pubkey),
             expected_amount: u64::from_le_bytes(*expected_amount),
         })
     }
@@ -694,23 +694,23 @@ impl Pack for Escrow {
         let (
             is_initialized_dst,
             initializer_pubkey_dst,
-            initializer_temp_token_account_pubkey_dst,
-            initializer_receiving_token_account_pubkey_dst,
+            temp_token_account_pubkey_dst,
+            initializer_token_to_receive_account_pubkey_dst,
             expected_amount_dst,
         ) = mut_array_refs![dst, 1, 32, 32, 32, 8];
 
         let Escrow {
             is_initialized,
             initializer_pubkey,
-            initializer_temp_token_account_pubkey,
-            initializer_receiving_token_account_pubkey,
+            temp_token_account_pubkey,
+            initializer_token_to_receive_account_pubkey,
             expected_amount,
         } = self;
 
         is_initialized_dst[0] = *is_initialized as u8;
         initializer_pubkey_dst.copy_from_slice(initializer_pubkey.as_ref());
-        initializer_temp_token_account_pubkey_dst.copy_from_slice(initializer_temp_token_account_pubkey.as_ref());
-        initializer_receiving_token_account_pubkey_dst.copy_from_slice(initializer_receiving_token_account_pubkey.as_ref());
+        temp_token_account_pubkey_dst.copy_from_slice(temp_token_account_pubkey.as_ref());
+        initializer_token_to_receive_account_pubkey_dst.copy_from_slice(initializer_token_to_receive_account_pubkey.as_ref());
         *expected_amount_dst = expected_amount.to_le_bytes();
     }
 }
@@ -744,8 +744,8 @@ if escrow_info.is_initialized() {
 
 escrow_info.is_initialized = true;
 escrow_info.initializer_pubkey = *initializer.key;
-escrow_info.initializer_temp_token_account_pubkey = *temp_token_account.key;
-escrow_info.initializer_receiving_token_account_pubkey = *received_token_account.key;
+escrow_info.temp_token_account_pubkey = *temp_token_account.key;
+escrow_info.initializer_token_to_receive_account_pubkey = *token_to_receive_account.key;
 escrow_info.expected_amount = amount;
 
 Escrow::pack(escrow_info, &mut escrow_account.data.borrow_mut())?;
@@ -977,7 +977,7 @@ After building the ix for creating the new account, we call two functions provid
 const initEscrowIx = new TransactionInstruction({
     programId: escrowProgramId,
     keys: [
-        { pubkey: aliceAccount.publicKey, isSigner: true, isWritable: false },
+        { pubkey: initializerAccount.publicKey, isSigner: true, isWritable: false },
         { pubkey: tempTokenAccount.publicKey, isSigner: false, isWritable: true },
         { pubkey: new PublicKey(initializerReceivingTokenAccountPubkeyString), isSigner: false, isWritable: false },
         { pubkey: escrowAccount.publicKey, isSigner: false, isWritable: true },
@@ -1027,7 +1027,7 @@ To understand what Bob's transaction should do, let's have a look once again at 
 
 </div>
 
-We can see that there is an escrow account which holds all the info necessary for the trade between Alice and Bob and there also is a token account which holds Alice's X tokens and is owned by a PDA of the escrow program.What we (and Bob) would like the tx to do is move the X tokens from the PDA-owned X token account to his X token account. The escrow program should also subtract tokens from Bob's Y token account and add them to the Y token account Alice had the escrow program write into the escrow state account (the `initializer_receiving_token_account_pubkey` property inside the Escrow struct inside `state.rs`). Lastly, the two accounts that have been created for the trade (the escrow state account and the temporary X token account) should be cleaned up since there is no need for them anymore.
+We can see that there is an escrow account which holds all the info necessary for the trade between Alice and Bob and there also is a token account which holds Alice's X tokens and is owned by a PDA of the escrow program.What we (and Bob) would like the tx to do is move the X tokens from the PDA-owned X token account to his X token account. The escrow program should also subtract tokens from Bob's Y token account and add them to the Y token account Alice had the escrow program write into the escrow state account (the `initializer_token_to_receive_account_pubkey` property inside the Escrow struct inside `state.rs`). Lastly, the two accounts that have been created for the trade (the escrow state account and the temporary X token account) should be cleaned up since there is no need for them anymore.
 
 Equipped with this knowledge, we can add the endpoint for what I've decided to call the `Exchange` instruction inside `instruction.rs`.
 
@@ -1041,8 +1041,8 @@ Equipped with this knowledge, we can add the endpoint for what I've decided to c
 /// 1. `[writable]` The taker's token account for the token they send 
 /// 2. `[writable]` The taker's token account for the token they will receive should the trade go through
 /// 3. `[writable]` The PDA's temp token account to get tokens from and eventually close
-/// 4. `[writable]` The creator's main account to send their rent fees to
-/// 5. `[writable]` The creator's token account that will receive tokens
+/// 4. `[writable]` The initializer's main account to send their rent fees to
+/// 5. `[writable]` The initializer's token account that will receive tokens
 /// 6. `[writable]` The escrow account holding the escrow info
 /// 7. `[]` The token program
 /// 8. `[]` The PDA account
@@ -1107,7 +1107,7 @@ fn process_exchange(
 
     let takers_sending_token_account = next_account_info(account_info_iter)?;
 
-    let takers_received_token_account = next_account_info(account_info_iter)?;
+    let takers_token_to_receive_account = next_account_info(account_info_iter)?;
 
     let pdas_temp_token_account = next_account_info(account_info_iter)?;
     let pdas_temp_token_account_info =
@@ -1118,40 +1118,40 @@ fn process_exchange(
         return Err(EscrowError::ExpectedAmountMismatch.into());
     }
 
-    let creators_main_account = next_account_info(account_info_iter)?;
-    let creators_received_token_account = next_account_info(account_info_iter)?;
+    let initializers_main_account = next_account_info(account_info_iter)?;
+    let initializers_token_to_receive_account = next_account_info(account_info_iter)?;
     let escrow_account = next_account_info(account_info_iter)?;
 
     let escrow_info = Escrow::unpack(&escrow_account.data.borrow())?;
 
-    if escrow_info.initializer_temp_token_account_pubkey != *pdas_temp_token_account.key {
+    if escrow_info.temp_token_account_pubkey != *pdas_temp_token_account.key {
         return Err(ProgramError::InvalidAccountData);
     }
 
-    if escrow_info.initializer_pubkey != *creators_main_account.key {
+    if escrow_info.initializer_pubkey != *initializers_main_account.key {
         return Err(ProgramError::InvalidAccountData);
     }
 
-    if escrow_info.initializer_receiving_token_account_pubkey != *creators_received_token_account.key {
+    if escrow_info.initializer_token_to_receive_account_pubkey != *initializers_token_to_receive_account.key {
         return Err(ProgramError::InvalidAccountData);
     }
 
     let token_program = next_account_info(account_info_iter)?;
 
-    let transfer_to_creator_ix = spl_token::instruction::transfer(
+    let transfer_to_initializer_ix = spl_token::instruction::transfer(
         token_program.key,
         takers_sending_token_account.key,
-        creators_received_token_account.key,
+        initializers_token_to_receive_account.key,
         taker.key,
         &[&taker.key],
         escrow_info.expected_amount,
     )?;
-    msg!("Calling the token program to transfer tokens to the escrow's creator...");
+    msg!("Calling the token program to transfer tokens to the escrow's initializer...");
     invoke(
-        &transfer_to_creator_ix,
+        &transfer_to_initializer_ix,
         &[
             takers_sending_token_account.clone(),
-            creators_received_token_account.clone(),
+            initializers_token_to_receive_account.clone(),
             taker.clone(),
             token_program.clone(),
         ],
@@ -1171,7 +1171,7 @@ let pda_account = next_account_info(account_info_iter)?;
 let transfer_to_taker_ix = spl_token::instruction::transfer(
     token_program.key,
     pdas_temp_token_account.key,
-    takers_received_token_account.key,
+    takers_token_to_receive_account.key,
     &pda,
     &[&pda],
     pdas_temp_token_account_info.amount,
@@ -1181,7 +1181,7 @@ invoke_signed(
     &transfer_to_taker_ix,
     &[
         pdas_temp_token_account.clone(),
-        takers_received_token_account.clone(),
+        takers_token_to_receive_account.clone(),
         pda_account.clone(),
         token_program.clone(),
     ],
@@ -1191,7 +1191,7 @@ invoke_signed(
 let close_pdas_temp_acc_ix = spl_token::instruction::close_account(
     token_program.key,
     pdas_temp_token_account.key,
-    creators_main_account.key,
+    initializers_main_account.key,
     &pda,
     &[&pda]
 )?;
@@ -1200,7 +1200,7 @@ invoke_signed(
     &close_pdas_temp_acc_ix,
     &[
         pdas_temp_token_account.clone(),
-        creators_main_account.clone(),
+        initializers_main_account.clone(),
         pda_account.clone(),
         token_program.clone(),
     ],
@@ -1236,7 +1236,7 @@ To conclude this function and the program, we can do the same with the escrow st
 
 ```rust
 msg!("Closing the escrow account...");
-**creators_main_account.lamports.borrow_mut() = creators_main_account.lamports()
+**initializers_main_account.lamports.borrow_mut() = initializers_main_account.lamports()
 .checked_add(escrow_account.lamports())
 .ok_or(EscrowError::AmountOverflow)?;
 **escrow_account.lamports.borrow_mut() = 0;
@@ -1280,11 +1280,11 @@ const PDA = await PublicKey.findProgramAddress([Buffer.from("escrow")], programI
 
 const exchangeInstruction = new TransactionInstruction({
     programId,
-    data: Buffer.from(Uint8Array.of(1, ...new BN(bobExpectedXTokenAmount).toArray("le", 8))),
+    data: Buffer.from(Uint8Array.of(1, ...new BN(takerExpectedXTokenAmount).toArray("le", 8))),
     keys: [
-        { pubkey: bobAccount.publicKey, isSigner: true, isWritable: false },
-        { pubkey: bobYTokenAccountPubkey, isSigner: false, isWritable: true },
-        { pubkey: bobXTokenAccountPubkey, isSigner: false, isWritable: true },
+        { pubkey: takerAccount.publicKey, isSigner: true, isWritable: false },
+        { pubkey: takerYTokenAccountPubkey, isSigner: false, isWritable: true },
+        { pubkey: takerXTokenAccountPubkey, isSigner: false, isWritable: true },
         { pubkey: escrowState.XTokenTempAccountPubkey, isSigner: false, isWritable: true},
         { pubkey: escrowState.initializerAccountPubkey, isSigner: false, isWritable: true},
         { pubkey: escrowState.initializerYTokenAccount, isSigner: false, isWritable: true},
@@ -1294,7 +1294,7 @@ const exchangeInstruction = new TransactionInstruction({
     ] 
 })
 
-await connection.sendTransaction(new Transaction().add(exchangeInstruction), [bobAccount]);
+await connection.sendTransaction(new Transaction().add(exchangeInstruction), [takerAccount]);
 ```
 ## Q & A
 
