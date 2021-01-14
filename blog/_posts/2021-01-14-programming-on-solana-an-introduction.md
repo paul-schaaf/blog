@@ -440,9 +440,9 @@ impl Processor {
         match instruction {
             EscrowInstruction::InitEscrow { amount } => {
                 msg!("Instruction: InitEscrow");
-                Self::process_init_escrow(accounts, amount, program_id);
+                Self::process_init_escrow(accounts, amount, program_id)
             }
-        };
+        }
     }
 }
 ```
@@ -993,7 +993,7 @@ The 5th and final ix - where we initiate the escrow - is more interesting since 
 ```ts
 const tx = new Transaction()
         .add(createTempTokenAccountIx, initTempAccountIx, transferXTokensToTempAccIx, createEscrowAccountIx, initEscrowIx);
-await connection.sendTransaction(tx, [feePayerAcc, tempTokenAccount, escrowAccount]);
+await connection.sendTransaction(tx, [initializerAccount, tempTokenAccount, escrowAccount], {skipPreflight: false, preflightCommitment: 'singleGossip'});
 ```
 
 Finally, we create a new Transaction and add all the instructions. Then, we send off the tx with its signers. In the js library world, an `Account` has a double meaning and is also used as the object to hold a keypair. That means the signers we pass in include the private keys and can actually sign. Obviously, we have to add Alice's account as a signer - she pays the fees and needs to authorize transfers from her accounts. We also have to add the other two accounts because it turns out when the system program creates a new account, the tx needs to be signed by that account.
@@ -1080,13 +1080,13 @@ The `process` function inside `processor.rs` will not compile now because a matc
 match instruction {
     EscrowInstruction::InitEscrow { amount } => {
         msg!("Instruction: InitEscrow");
-        Self::process_init_escrow(accounts, amount, program_id);
+        Self::process_init_escrow(accounts, amount, program_id)
     },
     EscrowInstruction::Exchange { amount } => {
         msg!("Instruction: Exchange");
-        Self::process_exchange(accounts, amount, program_id);
+        Self::process_exchange(accounts, amount, program_id)
     }
-};
+}
 ```
 
 Next, create the `process_exchange` function referenced here.
@@ -1294,11 +1294,11 @@ const exchangeInstruction = new TransactionInstruction({
     ] 
 })
 
-await connection.sendTransaction(new Transaction().add(exchangeInstruction), [takerAccount]);
+await connection.sendTransaction(new Transaction().add(exchangeInstruction), [takerAccount], {skipPreflight: false, preflightCommitment: 'singleGossip'});
 ```
 ## Q & A
 
-This is a collection of questions (and their answers) that have been asked by readers. Feel free to [contact me](https://discord.com/invite/pquxPsq) and ask away!
+This is a collection of questions that have been asked by readers whose answers would have made the guide itself too long. Feel free to [contact me](https://discord.com/invite/pquxPsq) and ask away!
 
 ### Is there really a need for a temporary account for Alice's X tokens?
 
