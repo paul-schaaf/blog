@@ -10,8 +10,12 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@vuepress/plugin-last-updated": "^1.7.1",
     "@vuepress/theme-blog": "^2.3.3",
     "vuepress": "^1.7.1",
-    "vuepress-plugin-container": "^2.1.5"
+    "vuepress-plugin-container": "^2.1.5",
+    "vuepress-plugin-medium-zoom": "^1.1.9",
+    "vuepress-plugin-reading-progress": "^1.0.10",
+    "vuepress-plugin-reading-time": "^0.1.1"
   }
 }
