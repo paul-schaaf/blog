@@ -858,7 +858,7 @@ fn process_instruction(
 
 Because we've built a part of the program that is complete in itself, we can now try it out! In doing so, we can acquire more knowledge about Solana, e.g. where do accounts come from?
 
-You can use this UI to try out your program ([Here's](https://github.com/paul-schaaf/solana-escrow) the code). I explain how it works and what you need to do to make it work below. Feel free to build your own!
+You can use this UI to try out your program ([Here's](https://github.com/paul-schaaf/escrow-ui) the code). I explain how it works and what you need to do to make it work below. Feel free to build your own!
 
 <iframe style="width:100%; height: 860px" frameborder="0" src="https://escrow-ui.netlify.app" title="Escrow - Alice's tx"></iframe>
 
