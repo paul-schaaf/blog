@@ -1310,7 +1310,10 @@ This is a collection of questions (and their answers) that have been asked by re
 
 Here are some ideas to improve the user experience
 
-- build a better UI (could be prettier, could include functionality to view an escrow's state given its address)
+- build a better UI
+    - add a way to sign the tx without having to expose your private key (e.g. using [Solong](https://solongwallet.com/) or the [SOL Wallet Adapter](https://github.com/project-serum/sol-wallet-adapter))
+    - make it prettier
+    - add functionality to view an escrow's state given its address
 - add a `Cancel` endpoint to the program. Currently, Alice's tokens are stuck in limbo and she will not be able to recover them if Bob decides not to take the trade. Add an endpoint that allows Alice to cancel the ongoing escrow, transferring the X tokens back to her and closing the two created accounts. 
 ## Further reading
 
