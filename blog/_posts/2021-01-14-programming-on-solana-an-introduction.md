@@ -1296,6 +1296,38 @@ const exchangeInstruction = new TransactionInstruction({
 
 await connection.sendTransaction(new Transaction().add(exchangeInstruction), [takerAccount], {skipPreflight: false, preflightCommitment: 'singleGossip'});
 ```
+
+## Bonus: Bugfixing!
+
+There is a bug in this program. It's nothing critical. I've left it in because it does showcase the subtleties of programming on Solana. Can you find it?
+
+<Hidden>
+<template v-slot:trigger="{show}">
+    {{show ? 'Hide' : 'Show'}} first hint
+</template>
+<template v-slot:content>
+    <p style="margin:0; padding: 0 20px 0 20px">It's inside <code>process_init_escrow</code></p>
+</template>
+</Hidden>
+
+<Hidden>
+<template v-slot:trigger="{show}">
+    {{show ? 'Hide' : 'Show'}} second hint
+</template>
+<template v-slot:content>
+    <p style="margin:0; padding: 0 20px 0 20px">There's an additional check missing that has to do with the possible states of an account</p>
+</template>
+</Hidden>
+
+<Hidden>
+<template v-slot:trigger="{show}">
+    {{show ? 'Hide' : 'Show'}} solution
+</template>
+<template v-slot:content>
+    <p style="margin:0; padding: 0 20px 0 20px">We check that Alice's Y token account is owned by the token program but what we don't check is that the given account is actually a token account. It could also be a token <i>mint</i> account. This is not a critical bug because Bob's tx will simply fail (when the program tries to transfer his Y tokens to a mint account) but for the same reasons as the check for correct program ownership we should add this check in Alice's ix.</p>
+</template>
+</Hidden>
+
 ## Q & A
 
 This is a collection of questions that have been asked by readers whose answers would have made the guide itself too long. Feel free to [contact me](https://discord.com/invite/pquxPsq) and ask away!
@@ -1323,3 +1355,7 @@ Here are some ideas to improve the user experience
 - [The token program](https://github.com/solana-labs/solana-program-library/tree/master/token/program)
 - [The token program docs](https://docs.rs/spl-token/3.0.1/spl_token/)
 - [The system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs)
+
+## Edits
+
+- 2021/01/18: added section on bugfixing
