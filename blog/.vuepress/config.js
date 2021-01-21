@@ -9,6 +9,20 @@ module.exports = {
       lineNumbers: true
     },
     themeConfig: {
+        nav: [
+          { text: 'Home', link: '/'},
+          { text: 'Blog', link: '/blog/' },
+          { text: 'Tags', link: '/tag/' },
+        ],
+        directories: [
+          {
+            id: "blog",
+            dirname: "_posts",
+            title: "Blog",
+            path: "/blog/",
+            itemPermalink: "/blog/:year/:month/:day/:slug"
+          }
+        ],
         lastUpdated: 'LastUpdated',
         footer: {
             contact: [
