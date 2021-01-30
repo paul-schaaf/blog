@@ -762,13 +762,13 @@ There's one thing left to do inside `process_init_escrow`: transferring (user sp
 ...
 escrow_info.expected_amount = amount;
 Escrow::pack(escrow_info, &mut escrow_account.data.borrow_mut())?;
-let (pda, _nonce) = Pubkey::find_program_address(&[b"escrow"], program_id);
+let (pda, _bump_seed) = Pubkey::find_program_address(&[b"escrow"], program_id);
 ```
 
 
-We create a PDA by passing in an array of seeds and the `program_id` into the `find_program_address` function. We get back a new `pda` and `nonce` (you can ignore the nonce for now) with a 1/(2^255) chance the function fails ([2^255 is a BIG number](https://youtu.be/S9JGmA5_unY)). In our case the seeds can be static. There are cases such as in the [Associated Token Account program](https://github.com/solana-labs/solana-program-library/blob/596700b6b100902cde33db0f65ca123a6333fa58/associated-token-account/program/src/lib.rs#L24) where they aren't (cause different users should own different associated token accounts). We just need `1` PDA that can own `N` temporary token accounts for different escrows occuring at any and possibly the same point in time.
+We create a PDA by passing in an array of seeds and the `program_id` into the `find_program_address` function. We get back a new `pda` and `bump_seed` (we won't need the bump seed in Alice's tx) with a 1/(2^255) chance the function fails ([2^255 is a BIG number](https://youtu.be/S9JGmA5_unY)). In our case the seeds can be static. There are cases such as in the [Associated Token Account program](https://github.com/solana-labs/solana-program-library/blob/596700b6b100902cde33db0f65ca123a6333fa58/associated-token-account/program/src/lib.rs#L24) where they aren't (cause different users should own different associated token accounts). We just need `1` PDA that can own `N` temporary token accounts for different escrows occuring at any and possibly the same point in time.
 
-Ok, but what _is_ a PDA? Normally, Solana key pairs use the [`ed25519`](http://ed25519.cr.yp.to/) standard. This means normal public keys lie on the `ed25519` elliptic curve. PDAs are public keys that are derived from the `program_id` and the seeds as well as _having been pushed off the curve by the nonce_. Hence,
+Ok, but what _is_ a PDA? Normally, Solana key pairs use the [`ed25519`](http://ed25519.cr.yp.to/) standard. This means normal public keys lie on the `ed25519` elliptic curve. PDAs are public keys that are derived from the `program_id` and the seeds as well as _having been pushed off the curve by the bump seed_. Hence,
 
 > Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
 
@@ -778,7 +778,9 @@ Ok, but what _is_ a PDA? Normally, Solana key pairs use the [`ed25519`](http://e
 
 </div>
 
-A PDA is just a random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/1.5.0/src/solana_program/pubkey.rs.html#114)). We don't use the nonce here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
+
+
+A PDA is just a random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/1.5.0/src/solana_program/pubkey.rs.html#114)). We don't use the bump seed here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
 
 #### CPIs Part 1
 
@@ -1112,7 +1114,7 @@ fn process_exchange(
     let pdas_temp_token_account = next_account_info(account_info_iter)?;
     let pdas_temp_token_account_info =
         TokenAccount::unpack(&pdas_temp_token_account.data.borrow())?;
-    let (pda, nonce) = Pubkey::find_program_address(&[b"escrow"], program_id);
+    let (pda, bump_seed) = Pubkey::find_program_address(&[b"escrow"], program_id);
 
     if amount_expected_by_taker != pdas_temp_token_account_info.amount {
         return Err(EscrowError::ExpectedAmountMismatch.into());
@@ -1185,7 +1187,7 @@ invoke_signed(
         pda_account.clone(),
         token_program.clone(),
     ],
-    &[&[&b"escrow"[..], &[nonce]]],
+    &[&[&b"escrow"[..], &[bump_seed]]],
 )?;
 
 let close_pdas_temp_acc_ix = spl_token::instruction::close_account(
@@ -1204,7 +1206,7 @@ invoke_signed(
         pda_account.clone(),
         token_program.clone(),
     ],
-    &[&[&b"escrow"[..], &[nonce]]],
+    &[&[&b"escrow"[..], &[bump_seed]]],
 )?;
 
 Ok(())
@@ -1218,7 +1220,7 @@ Here we use the `invoke_signed` function to allow the PDA to sign something. Rec
 
 </div>
 
-The PDA isn't actually signing the CPI in cryptographic fashion. In addition to the two arguments, the `invoke_signed` function takes a third one: the seeds that were used to create the PDA the CPI is supposed to be "signed" with. You might be surprised to find the nonce there because you didn't define it as a seed. Well, the nonce is the seed that the `find_program_address` function adds to make the address fall off the Ed25519 curve. Now, 
+The PDA isn't actually signing the CPI in cryptographic fashion. In addition to the two arguments, the `invoke_signed` function takes a third one: the seeds that were used to create the PDA the CPI is supposed to be "signed" with. You might be surprised to find the bump seed there because you didn't define it as a seed. Well, the bump seed is the seed that the `find_program_address` function adds to make the address fall off the Ed25519 curve. Now, 
 
 > when a program calls `invoke_signed`, the runtime uses those seeds and the program id of the calling program to recreate the PDA and if it matches one of the given accounts inside `invoke_signed`'s arguments, that account's `signed` property will be set to true
 
@@ -1360,3 +1362,4 @@ Here are some ideas to improve the user experience
 ## Edits
 
 - 2021/01/18: added section on bugfixing
+- 2021/01/31: renamed "nonce" to "bump seed"
