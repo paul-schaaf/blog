@@ -887,7 +887,7 @@ My UI requires a private key (NEVER DO THIS IN A REAL APP). Go to [sollet.io](ht
 
 Change the sollet cluster to localnet.
 
-After creating the wallet, airdrop yourself some SOL to pay for the tx fees. Then, click on `export` to export your Base58 encoded private key and paste it above.
+After creating the wallet, airdrop yourself some SOL to pay for the tx fees. Then, click on `export` to export your private key byte array and paste it above.
 
 Use your throwaway wallet for the next steps as well.
 
@@ -1363,3 +1363,4 @@ Here are some ideas to improve the user experience
 
 - 2021/01/18: added section on bugfixing
 - 2021/01/31: renamed "nonce" to "bump seed"
+- 2021/02/08: sollet now exports byte array instead of base58 encoded priv key
