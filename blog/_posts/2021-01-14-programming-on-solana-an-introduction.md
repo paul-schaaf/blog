@@ -190,7 +190,7 @@ It assigns each token account an owner. Note that this token account owner attri
 
 ![](../images/2021-01-13/account.png)
 
-We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/FpYU4M8oH9pfUqzpff44gsGso96MUKW1G1tBZ9Kxcb7d?cluster=mainnet-beta). It parses the account's `data` property and displays its user space fields formatted properly.
+We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/EzMCP3PVVkZD4YFXhJNKhgwMihuxxeFqH4F6uPxFxFAe). It parses the account's `data` property and displays its user space fields formatted properly.
 
 You've probably noticed the `mint` field in the explorer. This is how we know which token the token account belongs to. For each token there is 1 mint account that holds the token's metadata such as the supply. We'll need this field later to verify that the token accounts Alice and Bob use really belong to asset X and Y and that neither party is sneaking in a wrong asset.
 
@@ -1364,3 +1364,4 @@ Here are some ideas to improve the user experience
 - 2021/01/18: added section on bugfixing
 - 2021/01/31: renamed "nonce" to "bump seed"
 - 2021/02/08: sollet now exports byte array instead of base58 encoded priv key
+- 2021/03/19: updated token account link
