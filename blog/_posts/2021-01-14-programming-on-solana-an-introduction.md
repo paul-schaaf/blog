@@ -286,11 +286,11 @@ Account 3 is the escrow account which also needs to be writable because the prog
 ```
 4. `[]` The rent sysvar
 ```
-Account 4 is the `Rent` sysvar. I'll explain this in detail once we get to writing the `processor` code. What you should remember for now is that 
+Account 4 is the `Rent` sysvar. I'll explain this in detail once we get to writing the `processor` code. 
 ```
 5. `[]` The token program
 ```
-Account 5 is the account of the token program itself. I will explain why we need this account as well when we get to writing the `processor` code
+What you should remember for now is that Account 5 is the account of the token program itself. I will explain why we need this account as well when we get to writing the `processor` code.
 
 > Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars can be accessed through accounts and store parameters such as what the current fee or rent is
 
@@ -887,7 +887,7 @@ My UI requires a private key (NEVER DO THIS IN A REAL APP). Go to [sollet.io](ht
 
 Change the sollet cluster to localnet.
 
-After creating the wallet, airdrop yourself some SOL to pay for the tx fees. Then, click on `export` to export your private key byte array and paste it above.
+After creating the wallet, airdrop yourself some SOL to pay for the tx fees. Then, click on your SOL account in the middle of the screen and then on `export` to export your private key byte array and paste it above.
 
 Use your throwaway wallet for the next steps as well.
 
@@ -1365,3 +1365,4 @@ Here are some ideas to improve the user experience
 - 2021/01/31: renamed "nonce" to "bump seed"
 - 2021/02/08: sollet now exports byte array instead of base58 encoded priv key
 - 2021/03/19: updated token account link
+- 2021/05/02: improve readability and explain how to get sollet byte array
