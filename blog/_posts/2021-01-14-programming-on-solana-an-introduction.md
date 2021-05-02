@@ -823,7 +823,7 @@ Ok(())
 // end of process_init_escrow
 ```
 
-Copy and replace the `solana_program` use statement. We continue with `process_init_escrow` by getting the token_program account. It's a rule that the program being called through a CPI must be included as an account in the 2nd argument of `invoke` (and `invoke_signed`). Next, we create the instruction. This is just the instruction that the token program would expect were we executing a normal call. The token program defines some helper functions inside its `instruction.rs` that we can make use of. Of particular interest to us is the `set_token_authority` function which is a builder function to create such an instruction. We pass in the token program id, then the account whose authority we'd like to change, the account that's the new authority (in our case the PDA), the type of authority change (there are different authority types for token accounts, we care about changing the owner), the current account owner (Alice -> initializer.key), and finally the public keys signing the CPI.
+Copy and replace the `solana_program` use statement. We continue with `process_init_escrow` by getting the token_program account. It's a rule that the program being called through a CPI must be included as an account in the 2nd argument of `invoke` (and `invoke_signed`). Next, we create the instruction. This is just the instruction that the token program would expect were we executing a normal call. The token program defines some helper functions inside its `instruction.rs` that we can make use of. Of particular interest to us is the `set_authority` function which is a builder function to create such an instruction. We pass in the token program id, then the account whose authority we'd like to change, the account that's the new authority (in our case the PDA), the type of authority change (there are different authority types for token accounts, we care about changing the owner), the current account owner (Alice -> initializer.key), and finally the public keys signing the CPI.
 
 The concept that is being used here is [_Signature Extension_](https://docs.solana.com/developing/programming-model/calling-between-programs#instructions-that-require-privileges). In short,
 
@@ -1366,3 +1366,4 @@ Here are some ideas to improve the user experience
 - 2021/02/08: sollet now exports byte array instead of base58 encoded priv key
 - 2021/03/19: updated token account link
 - 2021/05/02: improve readability and explain how to get sollet byte array
+- 2021/05/02: change "set_token_authority" to "set_authority"
