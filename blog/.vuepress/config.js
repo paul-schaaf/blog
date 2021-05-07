@@ -32,7 +32,7 @@ module.exports = {
                 },
                 {
                     type: 'twitter',
-                    link: 'https://twitter.com/blocks_go_brr',
+                    link: 'https://twitter.com/paulxpaulxpaulx',
                 },
             ]
         },

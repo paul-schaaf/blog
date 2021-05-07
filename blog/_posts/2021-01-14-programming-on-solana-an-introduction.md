@@ -32,7 +32,7 @@ I do not claim to explain _all_ topics but hope this will be a solid starting po
 
 If something is not working and you just cannot figure out why, have a look at the final code [here](https://github.com/paul-schaaf/solana-escrow).
 
-If you find mistakes or would like to give feedback, please do contact me on discord [paulx#9059](https://discord.com/invite/pquxPsq) or [twitter](https://twitter.com/blocks_go_brr).
+If you find mistakes or would like to give feedback, please do contact me on discord [paulx#9059](https://discord.com/invite/pquxPsq) or [twitter](https://twitter.com/paulxpaulxpaulx).
 
 ## The Final Product
 
@@ -1333,7 +1333,7 @@ There is a bug in this program. It's nothing critical. I've left it in because i
 ## Q & A
 
 This is a collection of questions that have been asked by readers whose answers would have made the guide itself too long. Feel free to
-[contact me](https://twitter.com/blocks_go_brr) and ask away!
+[contact me](https://twitter.com/paulxpaulxpaulx) and ask away!
 
 ### Is there really a need for a temporary account for Alice's X tokens?
 
