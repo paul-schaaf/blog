@@ -1228,7 +1228,7 @@ No other program can fake this PDA because it is the runtime that sees which pro
 
 We can see now that the first `invoke_signed` call transfers the tokens from the temp X token account to Bob's main X token account. The second one _closes_ the account. What does this mean? Recall that accounts are required to have a minimum balance to be rent exempt. Wouldn't it be nice if we could recover that balance when we no longer need an account? Turns out, we can and it's as simple as transferring the balance to a different account. 
 
-> If an account has no balance left, it will be purged from memory by the runtime after the instruction (you can see this when going navigating to an account that has been closed in the explorer)
+> If an account has no balance left, it will be purged from memory by the runtime after the transaction (you can see this when going navigating to an account that has been closed in the explorer)
 
 Now we can see why we had to check whether the escrow state account was rent-exempt. If we had't and Alice were to pass in a non-rent-exempt account, the account balance might go to zero before Bob takes the trade. With the account gone, Alice would have no way to recover her tokens.
 
@@ -1242,11 +1242,16 @@ msg!("Closing the escrow account...");
 .checked_add(escrow_account.lamports())
 .ok_or(EscrowError::AmountOverflow)?;
 **escrow_account.lamports.borrow_mut() = 0;
+*escrow_account.data.borrow_mut() = &mut [];
 
 Ok(())
 ```
 
 Transferring the lamports is as simple as adding the amount to one account and subtracting it from the other. We can adjust the balance of Alice's main account (she should get the lamports since she created the two accounts required for the trade) even though the escrow program is not the owner of her account because we are _crediting_ lamports to her account. Again, add the new error to `error.rs`.
+
+Note that we are also setting the data field equal to an empty slice. Why is this necessary if the account is purged from memory after the transaction anyway? It is because this instruction is not necessarily the final instruction in the transaction. Thus, a subsequent transaction may read or even revive the data completely by making the account rent-exempt again. Depending on your program, forgetting to clear the data field can have dangerous consequences.
+
+> In any call to a program that is of the "close" kind, i.e. where you set an account's lamports to zero so it's removed from memory after the transaction, make sure to either clear the data field or leave the data in a state that would be OK to be recovered by a subsequent transaction.
 
 And that's it! That's the program. Well done!
 
@@ -1258,7 +1263,8 @@ And that's it! That's the program. Well done!
 
 ::: theory-recap
 - when a program calls `invoke_signed`, the runtime uses the given seeds and the program id of the calling program to recreate the PDA and if it matches one of the given accounts inside `invoke_signed`'s arguments, that account's `signed` property will be set to true
-- If an account has no balance left, it will be purged from memory by the runtime after the instruction (you can see this when going navigating to an account that has been closed in the explorer)
+- If an account has no balance left, it will be purged from memory by the runtime after the transaction (you can see this when going navigating to an account that has been closed in the explorer)
+- "closing" instructions must set the data field properly, even if the intent is to have the account be purged from memory after the transaction
 :::
 
 ### Trying out the program, understanding Bob's transaction in practice
@@ -1367,3 +1373,4 @@ Here are some ideas to improve the user experience
 - 2021/03/19: updated token account link
 - 2021/05/02: improve readability and explain how to get sollet byte array
 - 2021/05/02: change "set_token_authority" to "set_authority"
+- 2021/05/11: add missing zeroing of data after process_exchange
