@@ -58,7 +58,7 @@ I'll end this background section here. The internet already has a lot of materia
 ## Building the escrow program - Alice's Transaction
 
 ### Setting up the project
-Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. You'll also need [`Rust`](https://www.rust-lang.org/tools/install). Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools. **You need at least version `1.5.2`**. (If you're on mac and there are no binaries for the version you want, follow the "build from source" section and add installed the bins to path. The `solana-install init` step is unnecessary and does not work, ignore it. If it doesn't build because a command cannot be found, try installing [_coreutils_](https://formulae.brew.sh/formula/coreutils) and [_binutils_](https://formulae.brew.sh/formula/binutils) with homebrew).
+Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. You'll also need [`Rust`](https://www.rust-lang.org/tools/install). Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools. (If you're on mac and there are no binaries for the version you want, follow the "build from source" section and add installed the bins to path. The `solana-install init` step is unnecessary and does not work, ignore it. If it doesn't build because a command cannot be found, try installing [_coreutils_](https://formulae.brew.sh/formula/coreutils) and [_binutils_](https://formulae.brew.sh/formula/binutils) with homebrew).
 
 If you don't know how to test solana programs yet, remove all the testing code. Testing programs is a topic for another blog post. Remove the testing code in `lib.rs` as well as the `tests` folder next to `src`. Lastly, remove the testing dependencies from [`Cargo.toml`](https://doc.rust-lang.org/book/ch01-03-hello-cargo.html?highlight=cargo#creating-a-project-with-cargo). It should now look like this:
 
@@ -71,7 +71,7 @@ license = "WTFPL"
 publish = false
 
 [dependencies]
-solana-program = "1.5.0"
+solana-program = "1.6.9"
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -369,8 +369,8 @@ Create a new file `error.rs` next to the others and register it inside `lib.rs`.
 ``` toml {4}
 ...
 [dependencies]
-solana-program = "1.5.0"
-thiserror = "1.0.21"
+solana-program = "1.6.9"
+thiserror = "1.0.24"
 ```
 
 and the following code to `error.rs`.
@@ -387,7 +387,7 @@ pub enum EscrowError {
 }
 ```
 
-What we are doing here is [defining an error type](https://doc.rust-lang.org/rust-by-example/error/multiple_error_types/define_error_type.html). Instead of having to write the `fmt::Display` implementation ourselves as is done in the example the link points to, we use the handy [thiserror](https://docs.rs/thiserror/1.0.22/thiserror/) library that does it for us using the [`#[error("..")]`](https://doc.rust-lang.org/book/ch19-06-macros.html?highlight=derive#how-to-write-a-custom-derive-macro) notation. This will become especially useful when we add more errors later on.
+What we are doing here is [defining an error type](https://doc.rust-lang.org/rust-by-example/error/multiple_error_types/define_error_type.html). Instead of having to write the `fmt::Display` implementation ourselves as is done in the example the link points to, we use the handy [thiserror](https://docs.rs/thiserror/latest/thiserror/) library that does it for us using the [`#[error("..")]`](https://doc.rust-lang.org/book/ch19-06-macros.html?highlight=derive#how-to-write-a-custom-derive-macro) notation. This will become especially useful when we add more errors later on.
 
 Looking back into `instruction.rs`, we can see that we are not quite done. The compiler is telling us it has no way of turning an EscrowError into a ProgramError ("the trait `std::convert::From<error::EscrowError>` is not implemented for `solana_program::program_error::ProgramError`"). So let's implement a way.
 
@@ -520,9 +520,9 @@ We don't make any changes to the `token_to_receive_account` though (inside Alice
 Finally, I'm sure you have noticed that we are using a crate here which we have not registered inside `Cargo.toml` yet. Let's do that now.
 ``` toml{4}
 [dependencies]
-solana-program = "1.5.0"
-thiserror = "1.0.21"
-spl-token = {version = "3.0.1", features = ["no-entrypoint"]}
+solana-program = "1.6.9"
+thiserror = "1.0.24"
+spl-token = {version = "3.1.1", features = ["no-entrypoint"]}
 ```
 
 We are using a slighly different way to import a dependency here than we did we the other dependencies. That's because we are importing another Solana program that has its own entrypoint. But our program should only have one entrypoint, the one we defined earlier. Luckily, the token program provides a switch to turn its entrypoint off with the help of a [cargo feature](https://doc.rust-lang.org/cargo/reference/features.html). We should define this feature in our program as well so others can import our program! I'll leave this to you with some hints: Check out the [token program's](https://github.com/solana-labs/solana-program-library/tree/master/token/program) `Cargo.toml` and its `lib.rs`. If you cannot or don't want to figure it out on your own, you can take a look into the escrow program I created.
@@ -612,7 +612,7 @@ We need to save `temp_token_account_pubkey` so that when Bob takes the trade, th
 
 `initializer_token_to_receive_account_pubkey` needs to be saved so that when Bob takes the trade, his tokens can be sent to that account. `expected_amount` will be used to check that Bob sends enough of his token. That leaves `initializer_pubkey` and `is_initialized`. I'll explain the latter now and the former later on.
 
-We use `is_initialized` to determine whether a given escrow account is already in use. This, serialization, and deserialization are all standardized in the [traits](https://doc.rust-lang.org/book/ch10-02-traits.html) of the [`program pack` module](https://docs.rs/solana-program/1.5.0/solana_program/program_pack/index.html). First, implement `Sealed` and `IsInitialized`. 
+We use `is_initialized` to determine whether a given escrow account is already in use. This, serialization, and deserialization are all standardized in the [traits](https://doc.rust-lang.org/book/ch10-02-traits.html) of the [`program pack` module](https://docs.rs/solana-program/latest/solana_program/program_pack/index.html). First, implement `Sealed` and `IsInitialized`. 
 
 ``` rust
 // inside state.rs
@@ -673,7 +673,7 @@ impl Pack for Escrow {
 
 The first requirement for something implementing `Pack` is defining `LEN` which is the size of our type. Looking at our Escrow struct, we can see how to calculate the length of the struct by adding the sizes of the individual data types: `1 (bool) + 3 * 32 (Pubkey) + 1 * 8 (u64) = 105`.  It's okay to use an entire `u8` for the bool since it'll make our coding easier and the cost of those extra wasted bits is infinitesimal.
 
-After defining the escrow's length, we implement `unpack_from_slice` which turns an array of `u8` into an instance of the Escrow struct we defined above. Nothing too interesting happens here. Notable here is the use of [arrayref](https://docs.rs/arrayref/0.3.6/arrayref/), a library for getting references to sections of a slice. The docs should be enough to understand the (just 4) different functions from the library. Make sure to add the library to `Cargo.toml`.
+After defining the escrow's length, we implement `unpack_from_slice` which turns an array of `u8` into an instance of the Escrow struct we defined above. Nothing too interesting happens here. Notable here is the use of [arrayref](https://docs.rs/arrayref/latest/arrayref/), a library for getting references to sections of a slice. The docs should be enough to understand the (just 4) different functions from the library. Make sure to add the library to `Cargo.toml`.
 
 ``` toml
 ...
@@ -717,7 +717,7 @@ impl Pack for Escrow {
 ```
 
 This is pretty much the same as the `unpack_from_slice` function, just vice versa! This time, we also pass in `&self`. We didn't have to do this inside `unpack_from_slice` because _there was no self_ yet. `unpack_from_slice` was a static constructor function returning a new instance of an escrow struct. When we `pack_into_slice`, we already have an instance of an Escrow struct and now serialize it into the given `dst` slice. And that's it for `state.rs`! But wait, if we look back into `processor.rs`, we call `unpack_unchecked`, a function we didn't define, so where is it coming from? The answer is that traits can have default functions that may be overridden but don't have to be.
-[Look here](https://docs.rs/solana-program/1.5.0/src/solana_program/program_pack.rs.html#29-39) to find out about `Pack`'s default functions. 
+[Look here](https://docs.rs/solana-program/latest/src/solana_program/program_pack.rs.html#29-39) to find out about `Pack`'s default functions. 
 
 With `state.rs` done, let's go back to the `processor.rs` and adjust one of our `use` statements.
  
@@ -780,7 +780,7 @@ Ok, but what _is_ a PDA? Normally, Solana key pairs use the [`ed25519`](http://e
 
 
 
-A PDA is just a random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/1.5.0/src/solana_program/pubkey.rs.html#114)). We don't use the bump seed here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
+A PDA is just a random array of bytes with the only defining feature being that they are _not_ on that curve. That said, they can still be used as normal addresses most of the time. You should absolutely read the two different docs on PDAs ([here](https://docs.solana.com/developing/programming-model/calling-between-programs#program-derived-addresses) and [here(find_program_address calls this function)](https://docs.rs/solana-program/latest/src/solana_program/pubkey.rs.html#114)). We don't use the bump seed here yet (also indicated by the underscore before the variable name). We will do that when we look into how it's possible to sign messages with PDAs even without a private key in PDAs Part 3 inside Bob's transaction.
 
 #### CPIs Part 1
 
@@ -832,6 +832,8 @@ The concept that is being used here is [_Signature Extension_](https://docs.sola
 In our case this means that because Alice signed the `InitEscrow` transaction, the program can make the token program `set_authority` CPI and include her pubkey as a signer pubkey. This is necessary because changing a token account's owner should of course require the approval of the current owner.
 
 Next to the instruction, we also need to pass in the accounts that are required by the instruction, in addition to the account of the program we are calling. You can look these up by going to the token programs `instruction.rs` and finding the setAuthority Enum whose comments will tell you which accounts are required (in our case, the current Owner's account and the account whose owner is to be changed).
+
+Note that before making a CPI, we should add another check that the `token_program` is truly the account of the token program. Otherwise, we might be calling a rogue program. If you're using the `spl-token` crate above version `3.1.1` (which I do in this guide), you don't have to do this if you use their instruction builder functions. They do it for you.
 
 Finally, adjust `entrypoint.rs` so it looks like this:
 ``` rust
@@ -1359,10 +1361,10 @@ Here are some ideas to improve the user experience
 ## Further reading
 
 - [The docs](https://docs.solana.com)
-- [The autogenerated docs](https://docs.rs/solana-program/1.5.0/solana_program/index.html)
+- [The autogenerated docs](https://docs.rs/solana-program/latest/solana_program/index.html)
 - [The Solana medium account](https://medium.com/solana-labs)
 - [The token program](https://github.com/solana-labs/solana-program-library/tree/master/token/program)
-- [The token program docs](https://docs.rs/spl-token/3.0.1/spl_token/)
+- [The token program docs](https://docs.rs/spl-token/latest/spl_token/)
 - [The system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs)
 
 ## Edits
@@ -1374,3 +1376,4 @@ Here are some ideas to improve the user experience
 - 2021/05/02: improve readability and explain how to get sollet byte array
 - 2021/05/02: change "set_token_authority" to "set_authority"
 - 2021/05/11: add missing zeroing of data after process_exchange
+- 2021/05/19: update dependencies, add token program check warning
