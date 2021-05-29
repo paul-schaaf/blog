@@ -292,7 +292,7 @@ Account 4 is the `Rent` sysvar. I'll explain this in detail once we get to writi
 ```
 What you should remember for now is that Account 5 is the account of the token program itself. I will explain why we need this account as well when we get to writing the `processor` code.
 
-> Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars can be accessed through accounts and store parameters such as what the current fee or rent is
+> Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars can be accessed through accounts and store parameters such as what the current fee or rent is. As of `solana-program` version `1.6.5`, [sysvars can also be accessed without being passed into the entrypoint as an account](https://github.com/solana-labs/solana/blob/a1a0d6f84b30ecea1fd1b699aa3cd6ab2741db77/programs/bpf/rust/sysvar/src/lib.rs) (this tutorial will continue to use the old way for now, but you shouldn't!).
 
 ``` rust
 InitEscrow {
@@ -359,7 +359,7 @@ impl EscrowInstruction {
 This won't compile because we are using an undefined error. Let's add that error next.
 
 ::: theory-recap
-- Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars are stored in accounts and store parameters such as what the current fee or rent is
+- Solana has sysvars that are parameters of the Solana cluster you are on. These sysvars can be accessed through accounts and store parameters such as what the current fee or rent is. As of `solana-program` version `1.6.5`, [sysvars can also be accessed without being passed into the entrypoint as an account](https://github.com/solana-labs/solana/blob/a1a0d6f84b30ecea1fd1b699aa3cd6ab2741db77/programs/bpf/rust/sysvar/src/lib.rs) (this tutorial will continue to use the old way for now, but you shouldn't!).
 :::
 
 ### error.rs
@@ -1377,3 +1377,4 @@ Here are some ideas to improve the user experience
 - 2021/05/02: change "set_token_authority" to "set_authority"
 - 2021/05/11: add missing zeroing of data after process_exchange
 - 2021/05/19: update dependencies, add token program check warning
+- 2021/05/29: sysvars can now be accessed without being passed in as an account
