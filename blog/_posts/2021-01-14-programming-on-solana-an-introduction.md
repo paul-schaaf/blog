@@ -165,7 +165,7 @@ While there is only one entrypoint, program execution can follow different paths
 Let's now look at the different execution paths our program may take by zooming out and sketching the program flow for our escrow program.
 
 Remember we have two parties _Alice_ and _Bob_ which means there are two `system_program` accounts. Because _Alice_ and _Bob_ want to transfer tokens,
-we'll make use of - you guessed it! - the `token program`. In the token program, to hold a token, you need a token account. Both _Alice_ and _Bob_ need an account for each token (which we'll call X and Y), so we get 4 more accounts. Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data. Note that this account is created for each exchange. For now, our world looks like this:
+we'll make use of - you guessed it! - the `token program`. In the token program, to hold a token, you need a token account. Both _Alice_ and _Bob_ need an account for each token (which we'll call token X and token Y), so we get 4 more accounts. Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data (it will e.g. store how much of token Y wants in exchange for her token X, but we'll get to that later!). Note that this account is created for each exchange. For now, our world looks like this:
 
 <div class="zoom-image">
 
@@ -184,7 +184,7 @@ The naive way one might connect Alice's main account to her token accounts is by
 of the token account. Clearly, this would not be sustainable if Alice owned many tokens because that would require her to keep a private key for each token account.
 
 It would be much easier for Alice if she just had one private key for all her token accounts and this is exactly how the token program does it!
-It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. This new token owner attribute is something the token program declares in user space (i.e. in the program they are building). It's encoded inside a token account's `data`, in addition to other properties such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx (tx=transaction) with the private key of their main account.
+It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. The new token owner attribute is something the token program declares in user space (i.e. in the program they are building). It's encoded inside a token account's `data`, in addition to [other properties](https://github.com/solana-labs/solana-program-library/blob/80e29ef6b9a081d457849a2ca42db50d7da0e37e/token/program/src/state.rs#L86) such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx (tx=transaction) with the private key of their main account.
 
 > All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information
 
@@ -205,7 +205,7 @@ With all this in mind, we can populate our world with more information:
 Now we know how all those accounts are connected but we don't know yet how Alice can transfer tokens to the escrow. We'll cover this now.
 #### transferring ownership
 
-The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade (The token program sets no limit of how many token accounts for the same mint one may be the owner of). Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
+The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade (The token program sets no limit on how many token accounts for the same mint one may be the owner of). Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
 
 <div class="zoom-image">
 
@@ -853,6 +853,8 @@ fn process_instruction(
 }
 ```
 
+Now you might be thinking "wait, we are giving the escrow program control over the temporary account but Alice never transferred anything into it! Shouldn't that have happened before?". And you're right, it should happen before! But importantly, it does not have to happen inside the escrow program itself. We'll look into how she can make the transfer in the same tx as the call to our program in the next section.
+
 ::: theory-recap
 - Program Derived Addresses do not lie on the `ed25519` curve and therefore have no private key associated with them.
 - When including a `signed` account in a program call, in all CPIs including that account made by that program inside the current instruction, the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
@@ -931,7 +933,7 @@ I've created a little slideshow to show the life of the transaction that Alice s
 
 As you can see in the top right corner,
 
-> there can be several _instructions_ (ix) inside one _transaction_ (tx) in Solana. These instructions are executed out _synchronously_ and the tx as a whole is executed _atomically_
+> there can be several _instructions_ (ix) inside one _transaction_ (tx) in Solana. These instructions are executed out _synchronously_ and the tx as a whole is executed _atomically_. These instructions can call different programs.
 
 This means that if a single instruction fails, the entire transaction fails. Right in ix1, we can see how accounts come to life.
 
@@ -1011,7 +1013,7 @@ An important note here is that while it's not important that all the instruction
 There are a couple of things that were left out - to keep things simple - but should definitely be added for a real program. First, the maximum token amount is U64_MAX which is higher than javascript's number value. Hence, you need to find a way to handle this, either by limiting the allowed amount of tokens that can be put in or by accepting the token amount as a string and then using a library like `bn.js` to convert the string. Secondly, you should never have your users put in a private key. Use an external wallet like `solong` or the `sol-wallet-adapter` library. You'd create the transaction, add the instructions, and then ask whatever trusted service you're using to sign the transaction and send it back to you. You can then add the other two keypair accounts and send off the tx to the network.
 
 ::: theory-recap
-- There can be several _instructions_ (ix) inside one _transaction_ (tx) in Solana. These instructions are executed out _synchronously_ and the tx as a whole is executed _atomically_
+- There can be several _instructions_ (ix) inside one _transaction_ (tx) in Solana. These instructions are executed out _synchronously_ and the tx as a whole is executed _atomically_. These instructions can call different programs.
 - The system program is responsible for allocating account space and assigning (internal - not user space) account ownership
 - Instructions may depend on previous instructions inside the same transaction
 - Commitment settings give downstream developers ways to query the network which differ in finality likelihood
@@ -1055,9 +1057,36 @@ Exchange {
     amount: u64,
 }
 ```
-The tx requires a total of 9 accounts. I will skip explaining them because you will see how they are used inside `processor.rs` and by now you should feel comfortable figuring this out by yourself!
+The ix requires a total of 9 accounts. I will skip explaining them because you will see how they are used inside `processor.rs` and by now you should feel comfortable figuring this out by yourself!
 
-The tx also expects an amount whose addition to the program actually isn't a necessity. The program will check whether the temp X token account holds the amount of X tokens Bob expects. Bob could check this himself by looking at the chain (and not sending his tx if he doesn't like what he's seeing) but this way it's more convenient although it does come at the risk of a failed transaction and wasted tx fees if the amount he wants does not equal the amount in the temp X token account. But with transaction fees costing a fraction of a cent this is acceptable.
+Importantly, the ix also expects an amount. Why is this necessary? After all, Bob could simply look up the escrow information account in the explorer and check that in its state, it has a reference to a temporary token account with the amount of X tokens he is comfortable receiving for his Y tokens. Why should the amount he expects still be included in his ix? Try to figure it out yourself!
+
+<Hidden>
+<template v-slot:trigger="{show}">
+    {{show ? 'Hide' : 'Show'}} first hint
+</template>
+<template v-slot:content>
+    <p style="margin:0; padding: 0 20px 0 20px">it's only a problem if we also implement a <code>cancel</code> endpoint that allows Alice to cancel an escrow she created</p>
+</template>
+</Hidden>
+
+<Hidden>
+<template v-slot:trigger="{show}">
+    {{show ? 'Hide' : 'Show'}} second hint
+</template>
+<template v-slot:content>
+    <p style="margin:0; padding: 0 20px 0 20px">frontrunning</p>
+</template>
+</Hidden>
+
+<Hidden>
+<template v-slot:trigger="{show}">
+    {{show ? 'Hide' : 'Show'}} solution
+</template>
+<template v-slot:content>
+    <p style="margin:0; padding: 0 20px 0 20px">Leaving out the amount makes possible a specific attack on the program. Note that this attack would only work if we added a <code>cancel</code> ix to the program that completely closed the escrow information account, allowing it to be reinitialized as a new escrow account. If this is implemented, Bob's ix can be <code>frontrun</code>. There already exist good explanations of frontrunning and frontrunning in crypto so I will not explain it in general here and instead focus on our program. Let's assume Alice opens a new escrow, offering to exchange her 10 SOL for someone's 2000USDC (Note that the token program has special functionality to convert native SOL into a SOL token, this makes it easy for other programs - like ours - to handle SOL without having to build extra functionality to handle native SOL). Bob sees the escrow on-chain and likes the terms of the escrow. He decides to send a <code>process_exchange</code> instruction. Importantly, in this version of the escrow, there is no check in the program that verifies that the amount Bob expects equals the amount in the escrow information account because Bob does not send the amount he expects in the first place. This means that by sending his ix, he agrees to whatever is written in the escrow information account. He thinks this is fine because before accepting he looked at the data field in the explorer and it contained a temp X account with the amount he expected. However, Alice now has a way to take his tokens without giving up hers. She could, for example, do this by colluding with the current slot leader, who is responsible for ordering the tx in their assigned slot. After Bob sent his tx to the leader, Alice's sends a tx that cancels the escrow and immediately creates a new one at the same address which now holds a reference to an empty temporary X token account. The leader puts this tx before Bob's. As a result, by the time Bob's tx is processed, the escrow Bob's tx references will reference the empty temporary X token account, so Bob will not receive anything but Alice will still receive Bob's Y tokens. Adding the expected amount in Bob's instruction will prevent this issue. Bob should, of course, verify that the program uses this information to check that <code> tempXtokenAccount.amount == expectedAmount</code> and does not just ignore it.</p>
+</template>
+</Hidden>
 
 We also need to adjust the match expression in the `unpack` function to include our new field.
 
@@ -1378,3 +1407,4 @@ Here are some ideas to improve the user experience
 - 2021/05/11: add missing zeroing of data after process_exchange
 - 2021/05/19: update dependencies, add token program check warning
 - 2021/05/29: sysvars can now be accessed without being passed in as an account
+- 2021/08/11: added frontrunning quiz and improved flow
