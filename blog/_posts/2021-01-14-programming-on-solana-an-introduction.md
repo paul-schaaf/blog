@@ -1386,7 +1386,7 @@ Here are some ideas to improve the user experience
     - add a way to sign the tx without having to expose your private key (e.g. using [Solong](https://solongwallet.com/) or the [SOL Wallet Adapter](https://github.com/project-serum/sol-wallet-adapter))
     - make it prettier
     - add functionality to view an escrow's state given its address
-- add a `Cancel` endpoint to the program. Currently, Alice's tokens are stuck in limbo and she will not be able to recover them if Bob decides not to take the trade. Add an endpoint that allows Alice to cancel the ongoing escrow, transferring the X tokens back to her and closing the two created accounts. 
+- add a `Cancel` endpoint to the program. Currently, Alice's tokens are stuck in limbo and she will not be able to recover them if Bob decides not to take the trade. Add an endpoint that allows Alice to cancel the ongoing escrow, transferring the X tokens back to her and closing the two created accounts. 🚨 If you implement cancel, you also need to add another check to prevent a frontrunning attack. Preventing it requires that Bob also sends the amount of Y tokens that he expects to send Alice (`expected_y_amount`) in addition to the amount of X tokens he expects from her. The check belongs in `process_exchange` and verifies that `escrow_info.expected_amount == expected_y_amount`. This prevents the following attack: Once Bob sends his Transaction and Alice sees it, Alice can cancel the escrow, reinitialise it at the same address but with a higher expected amount, thereby receiving more Y tokens than Bob expected to give her. Alternatively (or additionally), Bob could use a temporary token account himself so that in the case Alice frontruns him, his tx will fail because there's not enough Y tokens in his temporary token account. 🚨
 ## Further reading
 
 - [The docs](https://docs.solana.com)
@@ -1408,3 +1408,4 @@ Here are some ideas to improve the user experience
 - 2021/05/19: update dependencies, add token program check warning
 - 2021/05/29: sysvars can now be accessed without being passed in as an account
 - 2021/08/11: added frontrunning quiz and improved flow
+- 2021/08/30: added warning to potential improvements section regarding implementing cancel
