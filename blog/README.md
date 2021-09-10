@@ -6,7 +6,7 @@ title: About
 
 This is where I share some of my experiences and learnings.
 
-I'm currently pursuing a bachelor's degree in computer science at the Technical University of Munich. I'm also an engineer at [MercurialFinance](https://www.mercurial.finance/).
+I'm currently pursuing a bachelor's degree in computer science at the Technical University of Munich.
 
 To look at my code, go [here](https://www.github.com/paul-schaaf).
 
