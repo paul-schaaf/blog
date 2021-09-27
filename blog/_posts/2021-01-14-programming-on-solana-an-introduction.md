@@ -80,7 +80,7 @@ crate-type = ["cdylib", "lib"]
 ### entrypoint.rs, programs, and accounts
 Have a look into `lib.rs`. First, the required [crates](https://doc.rust-lang.org/book/ch07-01-packages-and-crates.html) are brought into scope using [use](https://doc.rust-lang.org/stable/book/ch07-04-bringing-paths-into-scope-with-the-use-keyword.html). Then we use the `entrypoint!` [macro](https://doc.rust-lang.org/stable/book/ch19-06-macros.html) to declare the `process_instruction` function the [entrypoint](https://docs.solana.com/developing/on-chain-programs/developing-rust#program-entrypoint) to the program. Entrypoints are the only way to call a program; all calls go through the function declared as the entrypoint.
 
-> When called, a program is passed to its [BPF Loader]((https://docs.solana.com/developing/builtins/programs#bpf-loader)) which processes the call. Different BPF loaders may require different entrypoints.
+> When called, a program is passed to its [BPF Loader](https://docs.solana.com/developing/on-chain-programs/overview#loaders) which processes the call. Different BPF loaders may require different entrypoints.
 
 The reason for the existence of multiple BPF Loaders is that it itself is a program. If updates are made to the program, a new program version has to be deployed. We can see that the BPF loader we are using requires the entrypoint function to take 3 arguments. `program_id` is simply the program id of the currently executing program. Why you'd want access to it inside the program will become apparent later. `intruction_data` is data passed to the program by the caller, it could be anything. Finally, to understand what `accounts` are, we have to dive deeper into the [solana programming model](https://docs.solana.com/developing/programming-model/overview). The reason we need accounts is because
 
@@ -864,7 +864,9 @@ Now you might be thinking "wait, we are giving the escrow program control over t
 
 Because we've built a part of the program that is complete in itself, we can now try it out! In doing so, we can acquire more knowledge about Solana, e.g. where do accounts come from?
 
-You can use this UI to try out your program ([Here's](https://github.com/paul-schaaf/escrow-ui) the code). I explain how it works and what you need to do to make it work below. Feel free to build your own!
+I've prepared two ways for you to interact with the program and I encourage you to try them both. First, there is a set of scripts that test whether you implemented the program correctly. Reading them should also provide you with a better understanding of how we can interact with solana programs on the client side. You can find the scripts and instructions on how to use them [here](https://github.com/paul-schaaf/escrow-scripts).
+
+You can use also this UI to try out your program ([Here's](https://github.com/paul-schaaf/escrow-ui) the code). It's a little more complex than just executing the scripts but I explain how it works and what you need to do to make it work below. Feel free to build your own!
 
 <iframe style="width:100%; height: 860px" frameborder="0" src="https://escrow-ui.netlify.app" title="Escrow - Alice's tx"></iframe>
 
@@ -1386,17 +1388,21 @@ Here are some ideas to improve the user experience
     - add a way to sign the tx without having to expose your private key (e.g. using [Solong](https://solongwallet.com/) or the [SOL Wallet Adapter](https://github.com/project-serum/sol-wallet-adapter))
     - make it prettier
     - add functionality to view an escrow's state given its address
-- add a `Cancel` endpoint to the program. Currently, Alice's tokens are stuck in limbo and she will not be able to recover them if Bob decides not to take the trade. Add an endpoint that allows Alice to cancel the ongoing escrow, transferring the X tokens back to her and closing the two created accounts. 🚨 If you implement cancel, you also need to add another check to prevent a frontrunning attack. Preventing it requires that Bob also sends the amount of Y tokens that he expects to send Alice (`expected_y_amount`) in addition to the amount of X tokens he expects from her. The check belongs in `process_exchange` and verifies that `escrow_info.expected_amount == expected_y_amount`. This prevents the following attack: Once Bob sends his Transaction and Alice sees it, Alice can cancel the escrow, reinitialise it at the same address but with a higher expected amount, thereby receiving more Y tokens than Bob expected to give her. Alternatively (or additionally), Bob could use a temporary token account himself so that in the case Alice frontruns him, his tx will fail because there's not enough Y tokens in his temporary token account. 🚨
+- add a `Cancel` endpoint to the program. Currently, Alice's tokens are stuck in limbo and she will not be able to recover them if Bob decides not to take the trade. Add an endpoint that allows Alice to cancel the ongoing escrow, transferring the X tokens back to her and closing the two created accounts. 🚨 If you implement cancel, you also need to add another check to prevent a frontrunning attack. Preventing it requires that Bob also sends the amount of Y tokens that he expects to send Alice (`expected_y_amount`) in addition to the amount of X tokens he expects from her. The check belongs in `process_exchange` and verifies that `escrow_info.expected_amount == expected_y_amount`. This prevents the following attack: Once Bob sends his Transaction and Alice sees it, Alice can cancel the escrow, reinitialise it at the same address but with a higher expected amount, thereby receiving more Y tokens than Bob expected to give her. Alternatively (or additionally), Bob could use a temporary token account himself so that in the case Alice frontruns him, his tx will fail because there's not enough Y tokens in his temporary token account. In addition, you also need to have Bob send his `expected_x_amount` (see the frontrunning section in [#instruction-rs-part-3-understanding-what-bob-s-transaction-should-do](https://paulx.dev/blog/2021/01/14/programming-on-solana-an-introduction/#instruction-rs-part-3-understanding-what-bob-s-transaction-should-do)). 🚨
 ## Further reading
 
+Manual (De)serialization is a tedious and error-prone process. Check out the [borsh crate](https://crates.io/crates/borsh) which can automate this for you.
+
+[Anchor](https://project-serum.github.io/anchor/getting-started/introduction.html), a framework for writing solana programs, goes further and simplifies the entire programming process.
+
 - [The docs](https://docs.solana.com)
-- [The autogenerated docs](https://docs.rs/solana-program/latest/solana_program/index.html)
+- [The solana-program rust docs](https://docs.rs/solana-program/latest/solana_program/index.html)
 - [The Solana medium account](https://medium.com/solana-labs)
 - [The token program](https://github.com/solana-labs/solana-program-library/tree/master/token/program)
 - [The token program docs](https://docs.rs/spl-token/latest/spl_token/)
 - [The system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs)
 
-## Edits
+## Edits and acknowledgements
 
 - 2021/01/18: added section on bugfixing
 - 2021/01/31: renamed "nonce" to "bump seed"
@@ -1408,4 +1414,5 @@ Here are some ideas to improve the user experience
 - 2021/05/19: update dependencies, add token program check warning
 - 2021/05/29: sysvars can now be accessed without being passed in as an account
 - 2021/08/11: added frontrunning quiz and improved flow
-- 2021/08/30: added warning to potential improvements section regarding implementing cancel
+- 2021/08/30: added warning to potential improvements section regarding implementing cancel -- thanks to [Pierre Arowana](https://twitter.com/PierreArowana) and [William Arnold](https://twitter.com/windwardwill)
+- 2021/09/27: improved cancel warning, added scripts, added borsh and anchor to further reading, and fixed broken link -- thanks to [Tony Ricciardi](https://twitter.com/TonyVRicciardi) for finding the link
