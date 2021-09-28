@@ -864,7 +864,7 @@ Now you might be thinking "wait, we are giving the escrow program control over t
 
 Because we've built a part of the program that is complete in itself, we can now try it out! In doing so, we can acquire more knowledge about Solana, e.g. where do accounts come from?
 
-I've prepared two ways for you to interact with the program and I encourage you to try them both. First, there is a set of scripts that test whether you implemented the program correctly. Reading them should also provide you with a better understanding of how we can interact with solana programs on the client side. You can find the scripts and instructions on how to use them [here](https://github.com/paul-schaaf/escrow-scripts).
+I've prepared two ways for you to interact with the program and I encourage you to try them both. First, there is a set of scripts that test whether you implemented the program correctly. Reading them should also provide you with a better understanding of how we can interact with solana programs on the client side. You can find the scripts and instructions on how to use them [here](https://github.com/paul-schaaf/solana-escrow).
 
 You can use also this UI to try out your program ([Here's](https://github.com/paul-schaaf/escrow-ui) the code). It's a little more complex than just executing the scripts but I explain how it works and what you need to do to make it work below. Feel free to build your own!
 
