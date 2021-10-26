@@ -556,7 +556,7 @@ if !rent.is_exempt(escrow_account.lamports(), escrow_account.data_len()) {
     return Err(EscrowError::NotRentExempt.into());
 }
 
-let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.data.borrow())?;
+let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.try_borrow_data()?)?;
 if escrow_info.is_initialized() {
     return Err(ProgramError::AccountAlreadyInitialized);
 }
@@ -737,7 +737,7 @@ Let's finish the `process_init_escrow` function by first adding the state serial
 ``` rust {8-14}
 // inside process_init_escrow
 ...
-let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.data.borrow())?;
+let mut escrow_info = Escrow::unpack_unchecked(&escrow_account.try_borrow_data()?)?;
 if escrow_info.is_initialized() {
     return Err(ProgramError::AccountAlreadyInitialized);
 }
@@ -748,7 +748,7 @@ escrow_info.temp_token_account_pubkey = *temp_token_account.key;
 escrow_info.initializer_token_to_receive_account_pubkey = *token_to_receive_account.key;
 escrow_info.expected_amount = amount;
 
-Escrow::pack(escrow_info, &mut escrow_account.data.borrow_mut())?;
+Escrow::pack(escrow_info, &mut escrow_account.try_borrow_mut_data()?)?;
 ```
 
 Pretty straightforward. `pack` is another default function which internally calls our `pack_into_slice` function. 
@@ -761,7 +761,7 @@ There's one thing left to do inside `process_init_escrow`: transferring (user sp
 // inside process_init_escrow
 ...
 escrow_info.expected_amount = amount;
-Escrow::pack(escrow_info, &mut escrow_account.data.borrow_mut())?;
+Escrow::pack(escrow_info, &mut escrow_account.try_borrow_mut_data()?)?;
 let (pda, _bump_seed) = Pubkey::find_program_address(&[b"escrow"], program_id);
 ```
 
@@ -962,7 +962,7 @@ const tempTokenAccount = new Account();
 const createTempTokenAccountIx = SystemProgram.createAccount({
     programId: TOKEN_PROGRAM_ID,
     space: AccountLayout.span,
-    lamports: await connection.getMinimumBalanceForRentExemption(AccountLayout.span, 'singleGossip'),
+    lamports: await connection.getMinimumBalanceForRentExemption(AccountLayout.span, 'confirmed'),
     fromPubkey: feePayerAcc.publicKey,
     newAccountPubkey: tempTokenAccount.publicKey
 });
@@ -971,7 +971,7 @@ const createTempTokenAccountIx = SystemProgram.createAccount({
 The first instruction that is created is to create the new X token account that will be transferred to the PDA eventually. Note that it's just built here,
 nothing is sent yet. The function requires the user to specify which program the new account should belong to (`programId`), how much space it should have (`space`), what the initial balance should be (`lamports`), where to transfer that balance from (`fromPubkey`) and the address of the new account (`newAccountPubkey`).
 
-What about the `'singleGossip'` argument? `singleGossip` is one of the available [_Commitments_](https://solana-labs.github.io/solana-web3.js/typedef/index.html#static-typedef-Commitment) and tells us how to query the network. Which commitment level to pick depends on your use case. If you're moving millions and want to be as sure as possible that your tx cannot be rolled back, choose `max`. `singleGossip` is still pretty safe because of [optimistic confirmation and slashing](https://docs.solana.com/proposals/optimistic-confirmation-and-slashing).
+What about the `'confirmed'` argument? `confirmed` is one of the available [_Commitments_](https://solana-labs.github.io/solana-web3.js/modules.html#Commitment) and tells us how to query the network. Which commitment level to pick depends on your use case. If you're moving millions and want to be as sure as possible that your tx cannot be rolled back, choose `finalized`. `confirmed` is still pretty safe because of [optimistic confirmation and slashing](https://docs.solana.com/proposals/optimistic-confirmation-and-slashing).
 
 ```ts
 const initTempAccountIx = Token.createInitAccountInstruction(TOKEN_PROGRAM_ID, XTokenMintAccountPubkey, tempTokenAccount.publicKey, feePayerAcc.publicKey);
@@ -1001,7 +1001,7 @@ The 5th and final ix - where we initiate the escrow - is more interesting since 
 ```ts
 const tx = new Transaction()
         .add(createTempTokenAccountIx, initTempAccountIx, transferXTokensToTempAccIx, createEscrowAccountIx, initEscrowIx);
-await connection.sendTransaction(tx, [initializerAccount, tempTokenAccount, escrowAccount], {skipPreflight: false, preflightCommitment: 'singleGossip'});
+await connection.sendTransaction(tx, [initializerAccount, tempTokenAccount, escrowAccount], {skipPreflight: false, preflightCommitment: 'confirmed'});
 ```
 
 Finally, we create a new Transaction and add all the instructions. Then, we send off the tx with its signers. In the js library world, an `Account` has a double meaning and is also used as the object to hold a keypair. That means the signers we pass in include the private keys and can actually sign. Obviously, we have to add Alice's account as a signer - she pays the fees and needs to authorize transfers from her accounts. We also have to add the other two accounts because it turns out when the system program creates a new account, the tx needs to be signed by that account.
@@ -1146,7 +1146,7 @@ fn process_exchange(
 
     let pdas_temp_token_account = next_account_info(account_info_iter)?;
     let pdas_temp_token_account_info =
-        TokenAccount::unpack(&pdas_temp_token_account.data.borrow())?;
+        TokenAccount::unpack(&pdas_temp_token_account.try_borrow_data()?)?;
     let (pda, bump_seed) = Pubkey::find_program_address(&[b"escrow"], program_id);
 
     if amount_expected_by_taker != pdas_temp_token_account_info.amount {
@@ -1157,7 +1157,7 @@ fn process_exchange(
     let initializers_token_to_receive_account = next_account_info(account_info_iter)?;
     let escrow_account = next_account_info(account_info_iter)?;
 
-    let escrow_info = Escrow::unpack(&escrow_account.data.borrow())?;
+    let escrow_info = Escrow::unpack(&escrow_account.try_borrow_data()?)?;
 
     if escrow_info.temp_token_account_pubkey != *pdas_temp_token_account.key {
         return Err(ProgramError::InvalidAccountData);
@@ -1275,7 +1275,7 @@ msg!("Closing the escrow account...");
 .checked_add(escrow_account.lamports())
 .ok_or(EscrowError::AmountOverflow)?;
 **escrow_account.lamports.borrow_mut() = 0;
-*escrow_account.data.borrow_mut() = &mut [];
+*escrow_account.try_borrow_mut_data()? = &mut [];
 
 Ok(())
 ```
@@ -1335,7 +1335,7 @@ const exchangeInstruction = new TransactionInstruction({
     ] 
 })
 
-await connection.sendTransaction(new Transaction().add(exchangeInstruction), [takerAccount], {skipPreflight: false, preflightCommitment: 'singleGossip'});
+await connection.sendTransaction(new Transaction().add(exchangeInstruction), [takerAccount], {skipPreflight: false, preflightCommitment: 'confirmed'});
 ```
 
 ## Bonus: Bugfixing!
@@ -1416,3 +1416,4 @@ Manual (De)serialization is a tedious and error-prone process. Check out the [bo
 - 2021/08/11: added frontrunning quiz and improved flow
 - 2021/08/30: added warning to potential improvements section regarding implementing cancel -- thanks to [Pierre Arowana](https://twitter.com/PierreArowana) and [William Arnold](https://twitter.com/windwardwill)
 - 2021/09/27: improved cancel warning, added scripts, added borsh and anchor to further reading, and fixed broken link -- thanks to [Tony Ricciardi](https://twitter.com/TonyVRicciardi) for finding the link
+- 2021/10/26: removed deprecated commitment levels (thanks to Sundeep Charan Ramkumar#2703 from discord), added AccountInfo helpers for data and lamports
