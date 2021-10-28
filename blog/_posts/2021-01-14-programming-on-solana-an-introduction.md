@@ -196,20 +196,22 @@ You've probably noticed the `mint` field in the explorer. This is how we know wh
 
 With all this in mind, we can populate our world with more information:
 
-<div class="zoom-image">
+<div class="zoom-image" style="margin-top: 1.5rem; margin-bottom: 1.5rem; margin-left:.5rem">
 
-![](../images/2021-01-13/escrow-sketch-2.png)
+![](../images/2021-01-13/escrow_token_accounts_1.png)
 
 </div>
+
+For simplicity's sake I have removed the programs and their arrows and simply colored the other accounts appropriately. Once again, the "owned by" arrows in the diagram are referring to the user space ownership, not the internal solana account ownership.
 
 Now we know how all those accounts are connected but we don't know yet how Alice can transfer tokens to the escrow. We'll cover this now.
 #### transferring ownership
 
 The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade (The token program sets no limit on how many token accounts for the same mint one may be the owner of). Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
 
-<div class="zoom-image">
+<div class="zoom-image" style="margin-top: 1.5rem; margin-bottom: 1.5rem; margin-left:.5rem">
 
-![](../images/2021-01-13/escrow-sketch-3.png)
+![](../images/2021-01-13/escrow_token_accounts_2.png)
 
 </div>
 
@@ -1417,3 +1419,4 @@ Manual (De)serialization is a tedious and error-prone process. Check out the [bo
 - 2021/08/30: added warning to potential improvements section regarding implementing cancel -- thanks to [Pierre Arowana](https://twitter.com/PierreArowana) and [William Arnold](https://twitter.com/windwardwill)
 - 2021/09/27: improved cancel warning, added scripts, added borsh and anchor to further reading, and fixed broken link -- thanks to [Tony Ricciardi](https://twitter.com/TonyVRicciardi) for finding the link
 - 2021/10/26: removed deprecated commitment levels (thanks to Sundeep Charan Ramkumar#2703 from discord), added AccountInfo helpers for data and lamports
+- 2021/10/28: simplified token accounts diagrams
