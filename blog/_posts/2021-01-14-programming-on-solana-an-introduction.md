@@ -164,8 +164,7 @@ While there is only one entrypoint, program execution can follow different paths
 
 Let's now look at the different execution paths our program may take by zooming out and sketching the program flow for our escrow program.
 
-Remember we have two parties _Alice_ and _Bob_ which means there are two `system_program` accounts. Because _Alice_ and _Bob_ want to transfer tokens,
-we'll make use of - you guessed it! - the `token program`. In the token program, to hold a token, you need a token account. Both _Alice_ and _Bob_ need an account for each token (which we'll call token X and token Y), so we get 4 more accounts. Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data (it will e.g. store how much of token Y wants in exchange for her token X, but we'll get to that later!). Note that this account is created for each exchange. For now, our world looks like this:
+Remember we have two parties _Alice_ and _Bob_ which means there are two `system_program` accounts. Because _Alice_ and _Bob_ want to transfer tokens, we'll make use of - you guessed it! - the `token program`. In the token program, to hold a token, you need a token account. Both _Alice_ and _Bob_ need an account for each token. So we get 4 more accounts. I'll call our tokens X and token Y, Alice gets an X and a Y account and so does Bob. (Our own tokens are X and Y but this escrow will work for any tokens on solana, like [USDC](https://www.coingecko.com/en/coins/usd-coin) and [SRM](https://www.coingecko.com/en/coins/serum)). Since escrow creation and the trade won't happen inside a single transaction, it's probably a good idea to have another account to save some escrow data (it will e.g. store how much of token Y Alice wants in exchange for her token X, but we'll get to that later!). Note that this account is created for each exchange. For now, our world looks like this:
 
 <div class="zoom-image">
 
@@ -1420,3 +1419,4 @@ Manual (De)serialization is a tedious and error-prone process. Check out the [bo
 - 2021/09/27: improved cancel warning, added scripts, added borsh and anchor to further reading, and fixed broken link -- thanks to [Tony Ricciardi](https://twitter.com/TonyVRicciardi) for finding the link
 - 2021/10/26: removed deprecated commitment levels (thanks to Sundeep Charan Ramkumar#2703 from discord), added AccountInfo helpers for data and lamports
 - 2021/10/28: simplified token accounts diagrams
+- 2021/11/19: added token analogy to clarify what X and Y are (thanks to @albttx from twitter)
