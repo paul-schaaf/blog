@@ -1377,9 +1377,14 @@ This is a collection of questions that have been asked by readers whose answers 
 
 ### Is there really a need for a temporary account for Alice's X tokens?
 
-**Q:** Is there really a need for a temporary account for Alice's X tokens? Couldn't we just save the amount of X tokens Alice wants to trade inside the escrow state as well and then inside Bob's transaction have the escrow program make a CPI to the token program to deduct that amount from her account?
+**Q:** Is there really a need for a temporary account for Alice's X tokens? 
+
+- a) Couldn't we just save the amount of X tokens Alice wants to trade inside the escrow state as well and then inside Bob's transaction have the escrow program make a CPI to the token program to deduct that amount from her account?
 
 **A**: That wouldn't work because the `from` address of a token transfer needs to sign the transaction. Bob could ask Alice to sign his transaction but that would require more communication between Alice and Bob and thereby result in worse user experience. What you could use is a token account's (user space) `delegate` property but a token account can only have 1 delegate which means Alice could only have one ongoing escrow at a time.
+
+What is possible, however, is to create the temporary account inside the init instruction and have it be directly owned by the escrow PDA
+instead of creating it in a previous instruction and then transferring the authority in the init instruction like it is done in this guide.
 
 ## Potential improvements
 
@@ -1420,3 +1425,4 @@ Manual (De)serialization is a tedious and error-prone process. Check out the [bo
 - 2021/10/26: removed deprecated commitment levels (thanks to Sundeep Charan Ramkumar#2703 from discord), added AccountInfo helpers for data and lamports
 - 2021/10/28: simplified token accounts diagrams
 - 2021/11/19: added token analogy to clarify what X and Y are (thanks to @albttx from twitter)
+- 2022/01/03: added alternative temporary account creation flow to Q&A section
