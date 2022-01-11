@@ -58,7 +58,7 @@ I'll end this background section here. The internet already has a lot of materia
 ## Building the escrow program - Alice's Transaction
 
 ### Setting up the project
-Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. You'll also need [`Rust`](https://www.rust-lang.org/tools/install). Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools. (If you're on mac and there are no binaries for the version you want, follow the "build from source" section and add installed the bins to path. The `solana-install init` step is unnecessary and does not work, ignore it. If it doesn't build because a command cannot be found, try installing [_coreutils_](https://formulae.brew.sh/formula/coreutils) and [_binutils_](https://formulae.brew.sh/formula/binutils) with homebrew).
+Head over to the [template repo](https://github.com/mvines/solana-bpf-program-template), click `Use this template`, and set up a repo. The Solana ecosystem is still young so this is what we've got for now. Vscode with the Rust extension is what I use. You'll also need [`Rust`](https://www.rust-lang.org/tools/install). Additionally, go [here](https://docs.solana.com/cli/install-solana-cli-tools) to install the Solana dev tools. (If you're on mac and there are no binaries for the version you want, follow the "build from source" section and add installed the bins to path. If it doesn't build because a command cannot be found, try installing [_coreutils_](https://formulae.brew.sh/formula/coreutils) and [_binutils_](https://formulae.brew.sh/formula/binutils) with homebrew).
 
 If you don't know how to test solana programs yet, remove all the testing code. Testing programs is a topic for another blog post. Remove the testing code in `lib.rs` as well as the `tests` folder next to `src`. Lastly, remove the testing dependencies from [`Cargo.toml`](https://doc.rust-lang.org/book/ch01-03-hello-cargo.html?highlight=cargo#creating-a-project-with-cargo). It should now look like this:
 
@@ -66,12 +66,12 @@ If you don't know how to test solana programs yet, remove all the testing code. 
 [package]
 name = "solana-escrow"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 license = "WTFPL"
 publish = false
 
 [dependencies]
-solana-program = "1.6.9"
+solana-program = "1.9.4"
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -99,7 +99,7 @@ Now you might be thinking "does that mean that my own SOL account is actually no
 
 </div>
 
-[If you look at the system program](https://github.com/solana-labs/solana/blob/master/runtime/src/system_instruction_processor.rs#L179) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited.
+[If you look at the system program](https://github.com/solana-labs/solana/blob/73e6038986d6fff6efced6378cfcd57cb34c220c/runtime/src/system_instruction_processor.rs#L222) you'll see that although the program owns all basic SOL accounts, it can only transfer SOL from an account when the transaction has been signed by the private key of the SOL account being debited.
 
 > In theory, programs have full autonomy over the accounts they own. It is up to the program's creator to limit this autonomy and up to the users of the program to verify the program's creator has really done so
 
@@ -183,7 +183,7 @@ The naive way one might connect Alice's main account to her token accounts is by
 of the token account. Clearly, this would not be sustainable if Alice owned many tokens because that would require her to keep a private key for each token account.
 
 It would be much easier for Alice if she just had one private key for all her token accounts and this is exactly how the token program does it!
-It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. The new token owner attribute is something the token program declares in user space (i.e. in the program they are building). It's encoded inside a token account's `data`, in addition to [other properties](https://github.com/solana-labs/solana-program-library/blob/80e29ef6b9a081d457849a2ca42db50d7da0e37e/token/program/src/state.rs#L86) such as the balance of tokens the account holds. What this also means is that once a token account has been set up, its private key is useless, only its token owner attribute matters. And the token owner attribute is going to be some other address, in our case Alice's and Bob's main account respectively. When making a token transfer they simply have to sign the tx (tx=transaction) with the private key of their main account.
+It assigns each token account an owner. Note that this token account owner attribute is **not** the same as the account owner. The account owner is an internal Solana attribute that will always be a program. The new token owner attribute is something the token program declares in user space (i.e. in the program they are building). It's encoded inside a token account's `data`, in addition to [other properties](https://github.com/solana-labs/solana-program-library/blob/80e29ef6b9a081d457849a2ca42db50d7da0e37e/token/program/src/state.rs#L86) such as the balance of tokens the account holds.I will call the token owner "authority" and the solana internal owner "owner" in the rest of this post to avoid confusion. The existence of the authority also means that once a token account has been set up, its private key is useless, only its authority matters. And the authority is going to be some other address, in our case Alice's and Bob's main account addresses respectively. When making a token transfer they simply have to sign the tx (tx=transaction) with the private key of their main account.
 
 > All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information
 
@@ -206,7 +206,7 @@ For simplicity's sake I have removed the programs and their arrows and simply co
 Now we know how all those accounts are connected but we don't know yet how Alice can transfer tokens to the escrow. We'll cover this now.
 #### transferring ownership
 
-The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade (The token program sets no limit on how many token accounts for the same mint one may be the owner of). Then, using a function in the token program, she transfers (token-program) ownership of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
+The only way to own units of a token is to own a token account that holds some token balance of the token referenced by the account's (user space) `mint` property. Hence, the escrow program will need an account to hold Alice's X tokens. One way of achieving this is to have Alice create a temporary X token account to which she transfers the X tokens she wants to trade (The token program sets no limit on how many token accounts for the same mint one may be the authority of). Then, using a function in the token program, she transfers the authority of the temporary X token account to the escrow program. Let's add the temporary account to our escrow world. The image shows the escrow world _before_ Alice transfers token account ownership.
 
 <div class="zoom-image" style="margin-top: 1.5rem; margin-bottom: 1.5rem; margin-left:.5rem">
 
@@ -221,7 +221,7 @@ There is one more problem here. What exactly does Alice transfer ownership to? E
 - the token program owns token accounts which - inside their `data` field - hold [relevant information](https://github.com/solana-labs/solana-program-library/blob/master/token/program/src/state.rs#L86)
 - the token program also owns token mint accounts with [relevant data](https://github.com/solana-labs/solana-program-library/blob/master/token/program/src/state.rs#L86)
 - each token account holds a reference to their token mint account, thereby stating which token mint they belong to
-- the token program allows the (user space) owner of a token account to transfer its ownership to another address
+- the token program allows the authority of a token account to transfer its ownership to another address
 - All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the data field which is solely meant for user space information
 :::
 
@@ -370,7 +370,7 @@ Create a new file `error.rs` next to the others and register it inside `lib.rs`.
 ``` toml {4}
 ...
 [dependencies]
-solana-program = "1.6.9"
+solana-program = "1.9.4"
 thiserror = "1.0.24"
 ```
 
@@ -516,14 +516,14 @@ Next, add the highlighted lines. The temporary token account needs to be writabl
 
 You might ask yourself, "why do we check that the `token_to_receive_account` is actually owned by the token program but don't do the same for the `temp_token_account`?". The answer is that later on in the function we will ask the token program to transfer ownership of the `temp_token_account` to the _PDA_. This transfer will fail if the `temp_token_account` is not owned by the token program, because - as I'm sure you remember - only programs that own accounts may change accounts. Hence, there is no need for us to add another check here.
 
-We don't make any changes to the `token_to_receive_account` though (inside Alice's transaction). We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because the token program will attempt to send the Y tokens to Alice but not be the owner of the `token_to_receive_account`. That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
+We don't make any changes to the `token_to_receive_account` though (inside Alice's transaction). We will just save it into the escrow data so that when Bob takes the trade, the escrow will know where to send asset Y. Thus, for this account, we should add a check. Note that nothing terrible would happen if we didn't. Instead of Alice's transaction failing because of our added check, Bob's would fail because the token program will attempt to send the Y tokens to Alice but not be the authority of the `token_to_receive_account`. That said, it seems more reasonable to let the tx fail that actually led to the invalid state.
 
 Finally, I'm sure you have noticed that we are using a crate here which we have not registered inside `Cargo.toml` yet. Let's do that now.
 ``` toml{4}
 [dependencies]
-solana-program = "1.6.9"
+solana-program = "1.9.4"
 thiserror = "1.0.24"
-spl-token = {version = "3.1.1", features = ["no-entrypoint"]}
+spl-token = {version = "3.2.0", features = ["no-entrypoint"]}
 ```
 
 We are using a slighly different way to import a dependency here than we did we the other dependencies. That's because we are importing another Solana program that has its own entrypoint. But our program should only have one entrypoint, the one we defined earlier. Luckily, the token program provides a switch to turn its entrypoint off with the help of a [cargo feature](https://doc.rust-lang.org/cargo/reference/features.html). We should define this feature in our program as well so others can import our program! I'll leave this to you with some hints: Check out the [token program's](https://github.com/solana-labs/solana-program-library/tree/master/token/program) `Cargo.toml` and its `lib.rs`. If you cannot or don't want to figure it out on your own, you can take a look into the escrow program I created.
@@ -824,15 +824,15 @@ Ok(())
 // end of process_init_escrow
 ```
 
-Copy and replace the `solana_program` use statement. We continue with `process_init_escrow` by getting the token_program account. It's a rule that the program being called through a CPI must be included as an account in the 2nd argument of `invoke` (and `invoke_signed`). Next, we create the instruction. This is just the instruction that the token program would expect were we executing a normal call. The token program defines some helper functions inside its `instruction.rs` that we can make use of. Of particular interest to us is the `set_authority` function which is a builder function to create such an instruction. We pass in the token program id, then the account whose authority we'd like to change, the account that's the new authority (in our case the PDA), the type of authority change (there are different authority types for token accounts, we care about changing the owner), the current account owner (Alice -> initializer.key), and finally the public keys signing the CPI.
+Copy and replace the `solana_program` use statement. We continue with `process_init_escrow` by getting the token_program account. It's a rule that the program being called through a CPI must be included as an account in the 2nd argument of `invoke` (and `invoke_signed`). Next, we create the instruction. This is just the instruction that the token program would expect were we executing a normal call. The token program defines some helper functions inside its `instruction.rs` that we can make use of. Of particular interest to us is the `set_authority` function which is a builder function to create such an instruction. We pass in the token program id, then the account whose authority we'd like to change, the account that's the new authority (in our case the PDA), the type of authority change (there are different authority types for token accounts, we care about changing the main authority), the current account authority (Alice -> initializer.key), and finally the public keys signing the CPI.
 
 The concept that is being used here is [_Signature Extension_](https://docs.solana.com/developing/programming-model/calling-between-programs#instructions-that-require-privileges). In short,
 
 > When including a `signed` account in a program call, in all CPIs including that account made by that program inside the current instruction, the account will also be `signed`, i.e. the _signature is extended_ to the CPIs.
 
-In our case this means that because Alice signed the `InitEscrow` transaction, the program can make the token program `set_authority` CPI and include her pubkey as a signer pubkey. This is necessary because changing a token account's owner should of course require the approval of the current owner.
+In our case this means that because Alice signed the `InitEscrow` transaction, the program can make the token program `set_authority` CPI and include her pubkey as a signer pubkey. This is necessary because changing a token account's authority should of course require the approval of the current authority.
 
-Next to the instruction, we also need to pass in the accounts that are required by the instruction, in addition to the account of the program we are calling. You can look these up by going to the token programs `instruction.rs` and finding the setAuthority Enum whose comments will tell you which accounts are required (in our case, the current Owner's account and the account whose owner is to be changed).
+Next to the instruction, we also need to pass in the accounts that are required by the instruction, in addition to the account of the program we are calling. You can look these up by going to the token programs `instruction.rs` and finding the setAuthority Enum whose comments will tell you which accounts are required (in our case, the current authority's account and the account whose authority is to be changed).
 
 Note that before making a CPI, we should add another check that the `token_program` is truly the account of the token program. Otherwise, we might be calling a rogue program. If you're using the `spl-token` crate above version `3.1.1` (which I do in this guide), you don't have to do this if you use their instruction builder functions. They do it for you.
 
@@ -1009,7 +1009,7 @@ Finally, we create a new Transaction and add all the instructions. Then, we send
 
 What we end up with after Alice's transaction is the last slide. There's a new esrow state account that holds relevant data to complete the trade as well as a new token account that is owned by a PDA of the escrow program. That token account's token balance is the amount of X tokens Alice would like to trade in for the expected amount (which is saved in the escrow state acount) of Y tokens.
 
-An important note here is that while it's not important that all the instructions are in the same transaction, **it is important that at least ix 1,2 and ix 4,5 are in the same transaction**. This is because after an account has been created by the system program, it's kind of just floating on the blockchain, still uninitialized, with no user space owner. If, for example, you put ix 1 and 2 in different transactions, someone could try to send a tx between those two and initialize their own token account, using the then still ownerless account created by ix 1. This cannot happen if you put ix 1 and 2 in the same transaction since a tx is executed atomically.
+An important note here is that while it's not important that all the instructions are in the same transaction, **it is important that at least ix 1,2 and ix 4,5 are in the same transaction**. This is because after an account has been created by the system program, it's kind of just floating on the blockchain, still uninitialized, with no authority. If, for example, you put ix 1 and 2 in different transactions, someone could try to send a tx between those two and initialize their own token account, using the then still ownerless account created by ix 1. This cannot happen if you put ix 1 and 2 in the same transaction since a tx is executed atomically.
 
 #### Adapting the frontend for real life use
 
@@ -1266,7 +1266,7 @@ We can see now that the first `invoke_signed` call transfers the tokens from the
 
 Now we can see why we had to check whether the escrow state account was rent-exempt. If we had't and Alice were to pass in a non-rent-exempt account, the account balance might go to zero before Bob takes the trade. With the account gone, Alice would have no way to recover her tokens.
 
-Since the temp token account is owned by the token program, only the token program may decrease the balance. And because this action requires permission of the (user space) owner of the token account (in this case the PDA), we use `invoke_signed` again.
+Since the temp token account is owned by the token program, only the token program may decrease the balance. And because this action requires permission of the authority of the token account (in this case the PDA), we use `invoke_signed` again.
 
 To conclude this function and the program, we can do the same with the escrow state account.
 
@@ -1426,3 +1426,4 @@ Manual (De)serialization is a tedious and error-prone process. Check out the [bo
 - 2021/10/28: simplified token accounts diagrams
 - 2021/11/19: added token analogy to clarify what X and Y are (thanks to @albttx from twitter)
 - 2022/01/03: added alternative temporary account creation flow to Q&A section
+- 2022/01/11: update versions and use "authority" instead of "user space owner"
