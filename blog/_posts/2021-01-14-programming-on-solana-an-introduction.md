@@ -227,7 +227,7 @@ There is one more problem here. What exactly does Alice transfer ownership to? E
 
 ### Program Derived Addresses (PDAs) Part 1
 
-We'd like some way for the program to own the X tokens while the escrow is open and waiting for Bob's transaction. The question is then, can programs be given user space ownership of a token account?
+We'd like some way for the program to own the X tokens while the escrow is open and waiting for Bob's transaction. The question is then, can programs be given the authority of a token account?
 
 <div class="zoom-image">
 
