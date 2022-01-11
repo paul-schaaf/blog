@@ -227,7 +227,7 @@ There is one more problem here. What exactly does Alice transfer ownership to? E
 
 ### Program Derived Addresses (PDAs) Part 1
 
-We'd like some way for the program to own the X tokens while the escrow is open and waiting for Bob's transaction. The question is then, can programs be given the authority of a token account?
+We'd like some way for the program to own the X tokens while the escrow is open and waiting for Bob's transaction. The question is then, can programs be made the authority of a token account?
 
 <div class="zoom-image">
 
@@ -235,7 +235,7 @@ We'd like some way for the program to own the X tokens while the escrow is open 
 
 </div>
 
-The trick is to assign token account ownership to a _Program Derived Address_ (PDA) of the escrow program. For now, it is enough for you to know this address exists and we can use it to let a program sign transactions or assign it user space ownership of accounts. We will cover PDAs in depth later but for now let's go back to coding!
+The trick is to assign the token account authority to a _Program Derived Address_ (PDA) of the escrow program. For now, it is enough for you to know this address exists and we can use it to let a program sign transactions and make it the authority of token accounts. We will cover PDAs in depth later but for now let's go back to coding!
 
 ### instruction.rs Part 2
 
