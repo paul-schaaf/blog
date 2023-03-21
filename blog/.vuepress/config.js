@@ -54,6 +54,14 @@ module.exports = {
           after: '</ul></div>'
         }
       ],
+      [
+        'vuepress-plugin-container',
+        {
+          type: 'note',
+          before: '<div class="gray-section"><div class="title">Note ⚠️</div>',
+          after: '</div>'
+        }
+      ],
       'vuepress-plugin-reading-time',
       [
         'medium-zoom',

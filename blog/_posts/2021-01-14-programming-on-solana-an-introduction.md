@@ -11,6 +11,17 @@ tags:
 ::: blog-meta
 :::
 
+::: note
+I am no longer updating this post. But this post may still be useful to you.
+It still covers many topics you need to understand to program on Solana and the code still works (although you may need to update dependencies).
+That said, since writing this post more than 2 years ago, the developer experience on Solana has improved significantly.
+Many tools like the [anchor framework](https://www.anchor-lang.com/) now exist to abstract away the complexities of writing Solana programs.
+Additionally, solana has been enhanced with new functionality like a new transaction format that is not covered here.
+
+<b>TLDR:</b> this post may help you understand core solana concepts and show you how to write a solana program without a framework
+but it is not a complete reflection of the developer experience on solana today and it’s missing some of the newer features.
+:::
+
 ## Intro & Motivation
 This guide is meant to serve as an intro to coding on the [Solana](https://www.solana.com) Blockchain,
 using an escrow program as an example. We'll go through the code together, building the escrow program step by step. I've also created a UI you will be able to use to try out your program. Additionally, you'll get to play with the (shameless plug) [spl-token-ui](https://www.spl-token-ui.com).
