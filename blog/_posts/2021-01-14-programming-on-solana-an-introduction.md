@@ -12,14 +12,14 @@ tags:
 :::
 
 ::: note
+<b>TLDR:</b> this post may help you understand core solana concepts and show you how to write a solana program without a framework
+but it is not a complete reflection of the developer experience on solana today and it’s missing some of the newer features.
+
 I am no longer updating this post. But this post may still be useful to you.
 It still covers many topics you need to understand to program on Solana and the code still works (although you may need to update dependencies).
 That said, since writing this post more than 2 years ago, the developer experience on Solana has improved significantly.
 Many tools like the [anchor framework](https://www.anchor-lang.com/) now exist to abstract away the complexities of writing Solana programs.
 Additionally, solana has been enhanced with new functionality like a new transaction format that is not covered here.
-
-<b>TLDR:</b> this post may help you understand core solana concepts and show you how to write a solana program without a framework
-but it is not a complete reflection of the developer experience on solana today and it’s missing some of the newer features.
 :::
 
 ## Intro & Motivation

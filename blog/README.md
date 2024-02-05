@@ -2,15 +2,13 @@
 title: About
 ---
 
-<h1 class="beginning"> Hi, I'm Paul 🌊</h1>
+<h1 class="beginning">Paul's Blog</h1>
 
-This is where I share some of my experiences and learnings.
+I'm a software engineer with a BSc. in CS from [TUM](https://en.wikipedia.org/wiki/Technical_University_of_Munich).
+I'm currently looking for a new job. I have experience working as a fullstack and blockchain engineer with both high level (python/js) and low level languages (c/rust)
+. Feel free to contact me on twitter, linkedin, or email (find it on linkedin).
 
-I'm currently pursuing a bachelor's degree in computer science at the Technical University of Munich.
-
-To look at my code, go [here](https://www.github.com/paul-schaaf).
-
-To read my blog posts, go [here](/blog).
+[my code](https://www.github.com/paul-schaaf), [my blog](/blog), [my linkedin](https://www.linkedin.com/in/paulsimonschaaf/), [my cv](/2024_02_CV.pdf)
 
 <style lang="stylus" scoped>
 p
