@@ -5,7 +5,7 @@ title: About
 <h1 class="beginning">Paul's Blog</h1>
 
 I'm a software engineer with a BSc. in CS from [TUM](https://en.wikipedia.org/wiki/Technical_University_of_Munich).
-I'm currently looking for a new job. [I have experience](/looking_for_work.html) working as a fullstack and blockchain engineer with both high level (python/js) and low level languages (c/rust)
+I'm currently looking for a new job. <a href="/looking_for_work.html">I have experience</a> working as a fullstack and blockchain engineer with both high level (python/js) and low level languages (c/rust)
 . Feel free to contact me on twitter, linkedin, or email (find it on linkedin).
 
 [my code](https://www.github.com/paul-schaaf), [my blog](/blog), [my linkedin](https://www.linkedin.com/in/paulsimonschaaf/), [my cv](/PaulSchaaf_CV.pdf)
