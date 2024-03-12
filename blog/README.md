@@ -4,11 +4,12 @@ title: About
 
 <h1 class="beginning">Paul's Blog</h1>
 
-I'm a software engineer with a BSc. in CS from [TUM](https://en.wikipedia.org/wiki/Technical_University_of_Munich).
-I'm currently looking for a new job. <a href="/looking_for_work.html">I have experience</a> working as a fullstack and blockchain engineer with both high level (python/js) and low level languages (c/rust)
-. Feel free to contact me on twitter, linkedin, or email (find it on linkedin).
+I'm a software engineer with a BSc. in CS from [TUM](https://en.wikipedia.org/wiki/Technical_University_of_Munich). I'm currently working at
+[Tools for Humanity](https://www.toolsforhumanity.com/) as a software engineer on the [worldcoin](https://worldcoin.org/) project.
 
-[my code](https://www.github.com/paul-schaaf), [my blog](/blog), [my linkedin](https://www.linkedin.com/in/paulsimonschaaf/), [my cv](/PaulSchaaf_CV.pdf)
+Feel free to contact me on twitter, linkedin, or email (find it on linkedin).
+
+[my code](https://www.github.com/paul-schaaf), [my blog](/blog), [my linkedin](https://www.linkedin.com/in/paulsimonschaaf/)
 
 <style lang="stylus" scoped>
 p
