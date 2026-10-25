@@ -1,6 +1,5 @@
 ---
 title: About
-lastUpdated: false
 ---
 
 I'm a software engineer with a BSc. in CS from [TUM](https://en.wikipedia.org/wiki/Technical_University_of_Munich). I'm currently working at

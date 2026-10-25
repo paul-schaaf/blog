@@ -1,18 +1,67 @@
-/* Placeholder styling only: enough to tell the custom containers apart from
-   body text. The actual design is done separately. */
+/* Boxed sections: notes and theory recaps. The border is an SVG stroke
+   rather than a CSS border so that its dash length and gap can be set. */
+:root {
+  --blog-section-background: transparent;
+  --blog-section-border-color: var(--vp-c-text-1);
+  --blog-section-border-width: 1px;
+  --blog-section-dash-length: 4px;
+  --blog-section-dash-gap: 6px;
+  --blog-section-accent-width: 0px;
+  --blog-section-radius: 1px;
+  --blog-section-padding-y: 18px;
+  --blog-section-padding-x: 24px;
+  --blog-section-font-scale: 1;
+  --blog-section-title-color: var(--vp-c-text-1);
+  --blog-section-title-font-family: var(--blog-heading-font-family);
+}
 
 .gray-section {
-  margin: 1rem 0;
-  padding: 1rem;
-  border-radius: 0.4rem;
-  background-color: var(--vp-c-bg-soft);
+  position: relative;
+  padding: var(--blog-section-padding-y) var(--blog-section-padding-x);
+  border-left: var(--blog-section-accent-width) solid var(--blog-section-border-color);
+  border-radius: var(--blog-section-radius);
+  background-color: var(--blog-section-background);
+  font-size: calc(1em * var(--blog-section-font-scale));
+}
+
+.gray-section .section-border {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The stroke is centred on the rectangle's edge, so the rectangle is inset by
+   half the stroke width to keep the stroke inside the box, and its corner
+   radius is reduced by the same amount so the stroke's outer edge follows the
+   box's rounding. */
+.gray-section .section-border rect {
+  x: calc(var(--blog-section-border-width) / 2);
+  y: calc(var(--blog-section-border-width) / 2);
+  width: calc(100% - var(--blog-section-border-width));
+  height: calc(100% - var(--blog-section-border-width));
+  rx: max(0px, calc(var(--blog-section-radius) - var(--blog-section-border-width) / 2));
+  fill: none;
+  stroke: var(--blog-section-border-color);
+  stroke-width: var(--blog-section-border-width);
+  stroke-dasharray: var(--blog-section-dash-length) var(--blog-section-dash-gap);
 }
 
 .gray-section .title {
+  font-family: var(--blog-section-title-font-family);
   font-weight: bold;
+  color: var(--blog-section-title-color);
 }
 
-.margin-bottom-zero {
+/* The box's padding alone sets the inset of its content: the blocks inside
+   keep their spacing to each other but not to the box's edges. */
+.gray-section > :first-child {
+  margin-top: 0;
+}
+
+.gray-section > :last-child {
   margin-bottom: 0;
 }
 
@@ -62,4 +111,274 @@
 .underline-hover:hover {
   text-decoration: underline;
   text-decoration-color: var(--vp-c-brand-1);
+}
+
+/* Design knobs for the post text. The default theme sets the text width per
+   breakpoint; these variables replace that with one value. The text font is
+   loaded from Google Fonts in the site config. */
+:root {
+  --vp-font-family-base: 'Lora', Georgia, serif;
+  --blog-content-width: 584px;
+  --blog-font-size: 14.5px;
+  --blog-line-height: 1.75;
+}
+
+/* Vertical rhythm of the post body. Block spacing applies to paragraphs,
+   lists, quotes, code blocks and callouts alike; subheading spacing covers
+   every heading level below the second. */
+:root {
+  --blog-block-spacing: 15px;
+  --blog-heading-space-above: 30px;
+  --blog-heading-space-below: 1px;
+  --blog-subheading-space-above: 20px;
+  --blog-subheading-space-below: 0px;
+}
+
+.vp-doc p,
+.vp-doc summary,
+.vp-doc blockquote,
+.vp-doc ul,
+.vp-doc ol,
+.vp-doc div[class*='language-'],
+.vp-doc .custom-block,
+.gray-section {
+  margin-top: var(--blog-block-spacing);
+  margin-bottom: var(--blog-block-spacing);
+}
+
+.vp-doc h2 {
+  margin: var(--blog-heading-space-above) 0 var(--blog-heading-space-below);
+}
+
+.vp-doc h3,
+.vp-doc h4,
+.vp-doc h5,
+.vp-doc h6 {
+  margin: var(--blog-subheading-space-above) 0 var(--blog-subheading-space-below);
+}
+
+/* The default theme's layout rules are scoped (class + data attribute), so the
+   overrides need one extra ancestor class to outrank them. */
+.Layout .VPContent .VPDoc:not(.has-sidebar) .container {
+  max-width: none;
+}
+
+.Layout .VPContent .VPDoc:not(.has-sidebar) .content {
+  /* Content width plus the content's own horizontal padding. */
+  max-width: calc(var(--blog-content-width) + 64px);
+}
+
+.Layout .VPContent .VPDoc.has-aside .content-container {
+  max-width: var(--blog-content-width);
+}
+
+.vp-doc {
+  font-size: var(--blog-font-size);
+  line-height: var(--blog-line-height);
+}
+
+.vp-doc p {
+  line-height: inherit;
+}
+
+:root {
+  --blog-heading-font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4,
+.vp-doc h5,
+.vp-doc h6,
+.post-header h1,
+.vp-doc .post-list-title {
+  font-family: var(--blog-heading-font-family);
+}
+
+/* Table of contents typography, size and gaps. The edge gap is the distance
+   to the left page edge; the line gap sits between the outline's rule and its
+   entries. */
+:root {
+  --blog-toc-font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --blog-toc-font-size: 13px;
+  --blog-toc-line-height: 26px;
+  --blog-toc-width: 192px;
+  --blog-toc-edge-gap: 12px;
+  --blog-toc-line-gap: 9px;
+  --blog-toc-color: var(--vp-c-text-2);
+  --blog-toc-active-color: var(--vp-c-text-1);
+}
+
+/* The outline sits at the left page edge. Taking it out of the flex flow lets
+   the text column stay centred while the outline hugs the page edge. */
+.Layout .VPContent .VPDoc .aside {
+  position: absolute;
+  top: 0;
+  left: var(--blog-toc-edge-gap);
+  padding-left: 0;
+  max-width: var(--blog-toc-width);
+}
+
+.Layout .VPContent .VPDoc .aside-container,
+.Layout .VPContent .VPDoc .aside-curtain {
+  width: var(--blog-toc-width);
+}
+
+/* The outline is a fixed, full-height panel below the nav bar. Auto margins
+   centre it vertically in that space while still letting an outline taller
+   than the space start at the top and scroll. */
+.Layout .VPContent .VPDoc .aside-container {
+  display: flex;
+  flex-direction: column;
+  padding-top: calc(
+    var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + var(--vp-doc-top-height, 0px)
+  );
+}
+
+.Layout .VPContent .VPDoc .aside-content {
+  min-height: 0;
+  margin: auto 0;
+  padding-bottom: 0;
+}
+
+.VPDoc .VPDocAsideOutline .content {
+  padding-left: var(--blog-toc-line-gap);
+}
+
+/* The theme always renders a title above the outline. */
+.VPDoc .VPDocAsideOutline .outline-title {
+  display: none;
+}
+
+/* The theme sets the marker's top to the active entry's offset plus the
+   height of its title plus the offset that centres the marker in its own
+   entry height. With the title hidden and a different entry height, shift
+   the marker so it centres on our entries instead. */
+.VPDoc .VPDocAsideOutline .outline-marker {
+  --theme-outline-title-height: 32px;
+  --theme-outline-entry-height: 32px;
+  transform: translateY(
+    calc(
+      (var(--blog-toc-line-height) - var(--theme-outline-entry-height)) / 2 -
+        var(--theme-outline-title-height)
+    )
+  );
+}
+
+.VPDoc .VPDocOutlineItem .outline-link {
+  font-family: var(--blog-toc-font-family);
+  font-size: var(--blog-toc-font-size);
+  line-height: var(--blog-toc-line-height);
+  color: var(--blog-toc-color);
+}
+
+.VPDoc .VPDocOutlineItem .outline-link:hover,
+.VPDoc .VPDocOutlineItem .outline-link.active {
+  color: var(--blog-toc-active-color);
+}
+
+/* The theme sizes quotes and tables in fixed pixels; relative sizes keep them
+   in step with the text font size. */
+.vp-doc blockquote > p {
+  font-size: inherit;
+}
+
+.vp-doc th,
+.vp-doc td {
+  font-size: 0.875em;
+}
+
+/* The theme draws a divider above every second-level heading. */
+.vp-doc h2 {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Code blocks get a full screen button next to the theme's copy button, drawn
+   the same way (same size, same grey stroke) so the two read as a pair. */
+:root {
+  --blog-icon-fullscreen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='rgba(128,128,128,1)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3'/%3E%3C/svg%3E");
+  --blog-icon-fullscreen-exit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='rgba(128,128,128,1)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3'/%3E%3C/svg%3E");
+  --blog-code-fullscreen-margin: 24px;
+  --blog-code-fullscreen-backdrop: rgba(0, 0, 0, 0.45);
+}
+
+.vp-doc [class*='language-'] > button.fullscreen {
+  direction: ltr;
+  position: absolute;
+  top: 12px;
+  /* Immediately left of the copy button, which sits at the right edge. */
+  right: 60px;
+  z-index: 3;
+  border: 1px solid var(--vp-code-copy-code-border-color);
+  border-radius: 4px;
+  width: 40px;
+  height: 40px;
+  background-color: var(--vp-code-copy-code-bg);
+  background-image: var(--blog-icon-fullscreen);
+  background-position: 50%;
+  background-size: 20px;
+  background-repeat: no-repeat;
+  opacity: 0;
+  cursor: pointer;
+  transition:
+    border-color 0.25s,
+    background-color 0.25s,
+    opacity 0.25s;
+}
+
+.vp-doc [class*='language-']:hover > button.fullscreen,
+.vp-doc [class*='language-'] > button.fullscreen:focus,
+.vp-doc [class*='language-'].is-fullscreen > button.fullscreen {
+  opacity: 1;
+}
+
+.vp-doc [class*='language-'] > button.fullscreen:hover {
+  border-color: var(--vp-code-copy-code-hover-border-color);
+  background-color: var(--vp-code-copy-code-hover-bg);
+}
+
+.vp-doc [class*='language-'].is-fullscreen > button.fullscreen {
+  background-image: var(--blog-icon-fullscreen-exit);
+}
+
+/* A full screen block leaves the text flow and covers the viewport apart from
+   a margin. An oversized shadow dims the page behind it. The block scrolls as
+   a whole, rather than just its <pre>, so the line numbers move with their
+   lines; the buttons stay put in the viewport instead. */
+.vp-doc [class*='language-'].is-fullscreen {
+  position: fixed;
+  inset: var(--blog-code-fullscreen-margin);
+  z-index: var(--vp-z-index-backdrop);
+  margin: 0;
+  overflow: auto;
+  box-shadow: 0 0 0 100vmax var(--blog-code-fullscreen-backdrop);
+}
+
+.vp-doc [class*='language-'].is-fullscreen pre {
+  overflow: visible;
+}
+
+.vp-doc [class*='language-'].is-fullscreen .line-numbers-wrapper {
+  bottom: auto;
+  min-height: 100%;
+}
+
+.vp-doc [class*='language-'].is-fullscreen > button.fullscreen,
+.vp-doc [class*='language-'].is-fullscreen > button.copy {
+  position: fixed;
+  top: calc(var(--blog-code-fullscreen-margin) + 12px);
+}
+
+.vp-doc [class*='language-'].is-fullscreen > button.fullscreen {
+  right: calc(var(--blog-code-fullscreen-margin) + 60px);
+}
+
+.vp-doc [class*='language-'].is-fullscreen > button.copy {
+  right: calc(var(--blog-code-fullscreen-margin) + 12px);
+}
+
+html.has-fullscreen-code {
+  overflow: hidden;
 }

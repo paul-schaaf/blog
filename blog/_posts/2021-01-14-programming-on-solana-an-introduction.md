@@ -8,9 +8,6 @@ tags:
     - coding
 ---
 
-::: blog-meta
-:::
-
 ::: note
 <b>TLDR:</b> this post may help you understand core solana concepts and show you how to write a solana program without a framework
 but it is not a complete reflection of the developer experience on solana today and it’s missing some of the newer features.
@@ -43,7 +40,7 @@ I do not claim to explain _all_ topics but hope this will be a solid starting po
 
 If something is not working and you just cannot figure out why, have a look at the final code [here](https://github.com/paul-schaaf/solana-escrow).
 
-If you find mistakes or would like to give feedback, please do contact me on discord [paulx#9059](https://discord.com/invite/pquxPsq) or [twitter](https://twitter.com/paulxpaulxpaulx).
+If you find mistakes or would like to give feedback, please do contact me on [twitter](https://twitter.com/paulxpaulxpaulx).
 
 ## The Final Product
 
@@ -1433,7 +1430,7 @@ Manual (De)serialization is a tedious and error-prone process. Check out the [bo
 - 2021/08/11: added frontrunning quiz and improved flow
 - 2021/08/30: added warning to potential improvements section regarding implementing cancel -- thanks to [Pierre Arowana](https://twitter.com/PierreArowana) and [William Arnold](https://twitter.com/windwardwill)
 - 2021/09/27: improved cancel warning, added scripts, added borsh and anchor to further reading, and fixed broken link -- thanks to [Tony Ricciardi](https://twitter.com/TonyVRicciardi) for finding the link
-- 2021/10/26: removed deprecated commitment levels (thanks to Sundeep Charan Ramkumar#2703 from discord), added AccountInfo helpers for data and lamports
+- 2021/10/26: removed deprecated commitment levels (thanks to Sundeep Charan Ramkumar), added AccountInfo helpers for data and lamports
 - 2021/10/28: simplified token accounts diagrams
 - 2021/11/19: added token analogy to clarify what X and Y are (thanks to @albttx from twitter)
 - 2022/01/03: added alternative temporary account creation flow to Q&A section

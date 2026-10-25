@@ -9,6 +9,7 @@ const { frontmatter } = useData();
     <h1>{{ frontmatter.title }}</h1>
     <div class="post-meta">
       <time :datetime="frontmatter.date">{{ frontmatter.dateText }}</time>
+      <div>Time to read: {{ frontmatter.readingTimeMinutes }} minutes</div>
     </div>
   </header>
 </template>

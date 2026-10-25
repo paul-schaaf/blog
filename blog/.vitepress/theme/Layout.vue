@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { nextTick, onMounted, watch } from "vue";
 import DefaultTheme from "vitepress/theme";
-import { useData, useRoute } from "vitepress";
+import { inBrowser, useData, useRoute } from "vitepress";
 import mediumZoom from "medium-zoom";
 import PostHeader from "./components/PostHeader.vue";
 import ReadingProgress from "./components/ReadingProgress.vue";
+import { setupFullscreenCode } from "./composables/fullscreenCode";
 
 const { frontmatter } = useData();
 const route = useRoute();
+
+const fullscreenCode = inBrowser ? setupFullscreenCode() : null;
 
 // Images that should open in a zoomed overlay on click.
 const ZOOMABLE_IMAGE_SELECTOR = ".zoom-image img";
@@ -21,7 +24,13 @@ function attachImageZoom(): void {
 onMounted(attachImageZoom);
 watch(
   () => route.path,
-  () => nextTick(attachImageZoom),
+  () => {
+    // A code block shown full screen belongs to the page being left.
+    if (fullscreenCode !== null) {
+      fullscreenCode.exit();
+    }
+    nextTick(attachImageZoom);
+  },
 );
 </script>
 
