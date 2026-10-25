@@ -24,7 +24,7 @@ interface WrappedContainer {
 const SECTION_BORDER_HTML = '<svg class="section-border" aria-hidden="true"><rect /></svg>';
 
 function boxedSectionOpening(title: string): string {
-  return `<div class="gray-section">${SECTION_BORDER_HTML}<div class="title">${title}</div>`;
+  return `<div class="boxed-section">${SECTION_BORDER_HTML}<div class="title">${title}</div>`;
 }
 
 const WRAPPED_CONTAINERS: WrappedContainer[] = [
@@ -102,7 +102,7 @@ export default defineConfig({
     const source = readFileSync(join(siteConfig.srcDir, pageData.filePath), "utf8");
     pageData.frontmatter.readingTimeMinutes = readingTimeMinutesOf(source);
 
-    // The theme shows post-only elements (date header, blog meta) based on
+    // The theme shows post-only elements (date header, reading progress) based on
     // this flag rather than guessing from the URL.
     const isPost = isPostSourcePath(pageData.filePath);
     pageData.frontmatter.isPost = isPost;

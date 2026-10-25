@@ -15,7 +15,7 @@
   --blog-section-title-font-family: var(--blog-heading-font-family);
 }
 
-.gray-section {
+.boxed-section {
   position: relative;
   padding: var(--blog-section-padding-y) var(--blog-section-padding-x);
   border-left: var(--blog-section-accent-width) solid var(--blog-section-border-color);
@@ -24,7 +24,7 @@
   font-size: calc(1em * var(--blog-section-font-scale));
 }
 
-.gray-section .section-border {
+.boxed-section .section-border {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -37,7 +37,7 @@
    half the stroke width to keep the stroke inside the box, and its corner
    radius is reduced by the same amount so the stroke's outer edge follows the
    box's rounding. */
-.gray-section .section-border rect {
+.boxed-section .section-border rect {
   x: calc(var(--blog-section-border-width) / 2);
   y: calc(var(--blog-section-border-width) / 2);
   width: calc(100% - var(--blog-section-border-width));
@@ -49,7 +49,7 @@
   stroke-dasharray: var(--blog-section-dash-length) var(--blog-section-dash-gap);
 }
 
-.gray-section .title {
+.boxed-section .title {
   font-family: var(--blog-section-title-font-family);
   font-weight: bold;
   color: var(--blog-section-title-color);
@@ -57,11 +57,11 @@
 
 /* The box's padding alone sets the inset of its content: the blocks inside
    keep their spacing to each other but not to the box's edges. */
-.gray-section > :first-child {
+.boxed-section > :first-child {
   margin-top: 0;
 }
 
-.gray-section > :last-child {
+.boxed-section > :last-child {
   margin-bottom: 0;
 }
 
@@ -141,7 +141,7 @@
 .vp-doc ol,
 .vp-doc div[class*='language-'],
 .vp-doc .custom-block,
-.gray-section {
+.boxed-section {
   margin-top: var(--blog-block-spacing);
   margin-bottom: var(--blog-block-spacing);
 }
@@ -164,8 +164,9 @@
 }
 
 .Layout .VPContent .VPDoc:not(.has-sidebar) .content {
-  /* Content width plus the content's own horizontal padding. */
-  max-width: calc(var(--blog-content-width) + 64px);
+  /* Content width plus the theme's horizontal padding on either side. */
+  --theme-content-padding-x: 32px;
+  max-width: calc(var(--blog-content-width) + 2 * var(--theme-content-padding-x));
 }
 
 .Layout .VPContent .VPDoc.has-aside .content-container {
@@ -302,19 +303,27 @@
   --blog-icon-fullscreen-exit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='rgba(128,128,128,1)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3'/%3E%3C/svg%3E");
   --blog-code-fullscreen-margin: 24px;
   --blog-code-fullscreen-backdrop: rgba(0, 0, 0, 0.45);
+  /* The theme's copy button: its inset from the block's top right corner and
+     its size. */
+  --theme-code-button-inset: 12px;
+  --theme-code-button-size: 40px;
+  --blog-code-button-gap: 8px;
+  /* Immediately left of the copy button, which sits at the right edge. */
+  --blog-code-fullscreen-button-right: calc(
+    var(--theme-code-button-inset) + var(--theme-code-button-size) + var(--blog-code-button-gap)
+  );
 }
 
 .vp-doc [class*='language-'] > button.fullscreen {
   direction: ltr;
   position: absolute;
-  top: 12px;
-  /* Immediately left of the copy button, which sits at the right edge. */
-  right: 60px;
+  top: var(--theme-code-button-inset);
+  right: var(--blog-code-fullscreen-button-right);
   z-index: 3;
   border: 1px solid var(--vp-code-copy-code-border-color);
   border-radius: 4px;
-  width: 40px;
-  height: 40px;
+  width: var(--theme-code-button-size);
+  height: var(--theme-code-button-size);
   background-color: var(--vp-code-copy-code-bg);
   background-image: var(--blog-icon-fullscreen);
   background-position: 50%;
@@ -368,15 +377,15 @@
 .vp-doc [class*='language-'].is-fullscreen > button.fullscreen,
 .vp-doc [class*='language-'].is-fullscreen > button.copy {
   position: fixed;
-  top: calc(var(--blog-code-fullscreen-margin) + 12px);
+  top: calc(var(--blog-code-fullscreen-margin) + var(--theme-code-button-inset));
 }
 
 .vp-doc [class*='language-'].is-fullscreen > button.fullscreen {
-  right: calc(var(--blog-code-fullscreen-margin) + 60px);
+  right: calc(var(--blog-code-fullscreen-margin) + var(--blog-code-fullscreen-button-right));
 }
 
 .vp-doc [class*='language-'].is-fullscreen > button.copy {
-  right: calc(var(--blog-code-fullscreen-margin) + 12px);
+  right: calc(var(--blog-code-fullscreen-margin) + var(--theme-code-button-inset));
 }
 
 html.has-fullscreen-code {
