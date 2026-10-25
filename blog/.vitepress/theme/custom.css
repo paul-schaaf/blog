@@ -113,6 +113,20 @@
   text-decoration-color: var(--vp-c-brand-1);
 }
 
+/* Space between the nav bar and the text of the about page. The first block
+   drops its top margin so the variable alone sets the gap. */
+:root {
+  --blog-about-space-above: 32px;
+}
+
+.Layout.about-page .VPContent .VPDoc {
+  padding-top: var(--blog-about-space-above);
+}
+
+.about-page .vp-doc > div > :first-child {
+  margin-top: 0;
+}
+
 /* Design knobs for the post text. The default theme sets the text width per
    breakpoint; these variables replace that with one value. The text font is
    loaded from Google Fonts in the site config. */
