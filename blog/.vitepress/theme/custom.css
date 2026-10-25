@@ -296,6 +296,16 @@
   padding-top: 0;
 }
 
+/* Code that sits inline in the text. */
+:root {
+  --blog-inline-code-padding-y: 1px;
+  --blog-inline-code-padding-x: 4px;
+}
+
+.vp-doc :not(pre) > code {
+  padding: var(--blog-inline-code-padding-y) var(--blog-inline-code-padding-x);
+}
+
 /* Code blocks get a full screen button next to the theme's copy button, drawn
    the same way (same size, same grey stroke) so the two read as a pair. */
 :root {
