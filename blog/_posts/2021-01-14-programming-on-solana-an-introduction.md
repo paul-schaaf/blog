@@ -1,6 +1,6 @@
 ---
 title: "Programming on Solana - An Introduction"
-summary: Learn the fundamentals of Programming on Solana by building an escrow
+description: Learn the fundamentals of Programming on Solana by building an escrow
 date: 2021-01-14
 tags:
     - solana
@@ -54,7 +54,7 @@ An escrow smart contract is a good example to look at and build because it highl
 
 <div class="zoom-image">
 
-![](../images/2021-01-13/escrow.gif)
+![](/images/2021-01-13/escrow.gif)
 
 </div>
 
@@ -106,7 +106,7 @@ Now you might be thinking "does that mean that my own SOL account is actually no
 
 <div class="zoom-image">
 
-![](../images/2021-01-13/always-has-been.jpeg)
+![](/images/2021-01-13/always-has-been.jpeg)
 
 </div>
 
@@ -179,7 +179,7 @@ Remember we have two parties _Alice_ and _Bob_ which means there are two `system
 
 <div class="zoom-image">
 
-![](../images/2021-01-13/escrow-sketch-1.png)
+![](/images/2021-01-13/escrow-sketch-1.png)
 
 </div>
 
@@ -198,7 +198,7 @@ It assigns each token account an owner. Note that this token account owner attri
 
 > All internal Solana internal account information are saved into [fields on the account](https://docs.rs/solana-program/1.5.0/solana_program/account_info/struct.AccountInfo.html#fields) but never into the `data` field which is solely meant for user space information
 
-![](../images/2021-01-13/account.png)
+![](/images/2021-01-13/account.png)
 
 We can see all this when looking at a token account in the [explorer](https://explorer.solana.com/address/EzMCP3PVVkZD4YFXhJNKhgwMihuxxeFqH4F6uPxFxFAe). It parses the account's `data` property and displays its user space fields formatted properly.
 
@@ -208,7 +208,7 @@ With all this in mind, we can populate our world with more information:
 
 <div class="zoom-image" style="margin-top: 1.5rem; margin-bottom: 1.5rem; margin-left:.5rem">
 
-![](../images/2021-01-13/escrow_token_accounts_1.png)
+![](/images/2021-01-13/escrow_token_accounts_1.png)
 
 </div>
 
@@ -221,7 +221,7 @@ The only way to own units of a token is to own a token account that holds some t
 
 <div class="zoom-image" style="margin-top: 1.5rem; margin-bottom: 1.5rem; margin-left:.5rem">
 
-![](../images/2021-01-13/escrow_token_accounts_2.png)
+![](/images/2021-01-13/escrow_token_accounts_2.png)
 
 </div>
 
@@ -242,7 +242,7 @@ We'd like some way for the program to own the X tokens while the escrow is open 
 
 <div class="zoom-image">
 
-![](../images/2021-01-13/no_but_yes.jpg)
+![](/images/2021-01-13/no_but_yes.jpg)
 
 </div>
 
@@ -786,7 +786,7 @@ Ok, but what _is_ a PDA? Normally, Solana key pairs use the [`ed25519`](http://e
 
 <div style="display: flex; justify-content: center" class="zoom-image">
 
-![](../images/2021-01-13/this_is_pda.jpg)
+![](/images/2021-01-13/this_is_pda.jpg)
 
 </div>
 
@@ -1043,7 +1043,7 @@ To understand what Bob's transaction should do, let's have a look once again at 
 
 <div class="zoom-image">
 
-![](../images/2021-01-13/escrow-alice-end.jpg)
+![](/images/2021-01-13/escrow-alice-end.jpg)
 
 </div>
 
@@ -1261,7 +1261,7 @@ Here we use the `invoke_signed` function to allow the PDA to sign something. Rec
 
 <div class="zoom-image">
 
-![](../images/2021-01-13/no_but_yes.jpg)
+![](/images/2021-01-13/no_but_yes.jpg)
 
 </div>
 
@@ -1302,7 +1302,7 @@ And that's it! That's the program. Well done!
 
 <div style="display: flex; justify-content: center">
 
-![](../images/applauding_sheep.gif)
+![](/images/applauding_sheep.gif)
 
 </div>
 

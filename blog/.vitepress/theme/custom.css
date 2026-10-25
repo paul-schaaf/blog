@@ -1,0 +1,65 @@
+/* Placeholder styling only: enough to tell the custom containers apart from
+   body text. The actual design is done separately. */
+
+.gray-section {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 0.4rem;
+  background-color: var(--vp-c-bg-soft);
+}
+
+.gray-section .title {
+  font-weight: bold;
+}
+
+.margin-bottom-zero {
+  margin-bottom: 0;
+}
+
+/* The zoom overlay must sit above the theme's nav bar (--vp-z-index-nav). */
+.medium-zoom-overlay {
+  z-index: 40;
+}
+
+.medium-zoom-image--opened {
+  z-index: 41;
+}
+
+.post-header {
+  margin-bottom: 1.5rem;
+}
+
+.post-header h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-bottom: 0.5rem;
+}
+
+.post-meta {
+  color: var(--vp-c-text-2);
+}
+
+/* `.vp-doc` prefix is needed to outrank the default theme's list styling. */
+.vp-doc .post-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.vp-doc .post-list-item {
+  margin: 0 0 2rem;
+}
+
+.vp-doc .post-list-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  border: none;
+}
+
+.underline-hover:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--vp-c-brand-1);
+}

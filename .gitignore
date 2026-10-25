@@ -1,3 +1,6 @@
 dist
 node_modules
 .DS_Store
+blog/.vitepress/cache
+blog/.vitepress/dist
+MIGRATION_NOTES.md
